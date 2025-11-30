@@ -23,8 +23,16 @@ if (process.env.GROQ_API_KEY) {
 }
 
 // Middleware
+const allowedOrigins = ['http://localhost:5173', 'http://localhost:5174'];
 app.use(cors({
-    origin: process.env.CORS_ORIGIN || 'http://localhost:5174',
+    origin: function (origin, callback) {
+        // Allow requests with no origin (like mobile apps or curl)
+        if (!origin) return callback(null, true);
+        if (allowedOrigins.indexOf(origin) === -1) {
+            return callback(new Error('CORS policy violation'), false);
+        }
+        return callback(null, true);
+    },
     credentials: true
 }));
 app.use(express.json());

@@ -1,9 +1,23 @@
-import React, { useState, useEffect } from 'react';
-import { collection, query, where, orderBy, onSnapshot, deleteDoc, doc } from 'firebase/firestore';
-import { db, auth } from '../firebaseConfig';
-import { signOut } from 'firebase/auth';
-import { Trash2, MessageSquare, Plus, LogOut, Ellipsis } from 'lucide-react';
-import { isToday, isYesterday, isWithinInterval, subDays, startOfDay } from 'date-fns';
+import React, { useState, useEffect } from "react";
+import {
+  collection,
+  query,
+  where,
+  orderBy,
+  onSnapshot,
+  deleteDoc,
+  doc,
+} from "firebase/firestore";
+import { db, auth } from "../firebaseConfig";
+import { signOut } from "firebase/auth";
+import { Trash2, MessageSquare, Plus, LogOut, Ellipsis } from "lucide-react";
+import {
+  isToday,
+  isYesterday,
+  isWithinInterval,
+  subDays,
+  startOfDay,
+} from "date-fns";
 
 /**
  * Helper function to group chats by date categories
@@ -16,7 +30,7 @@ const groupChatsByDate = (chats) => {
     yesterday: [],
     previous7Days: [],
     previous30Days: [],
-    older: []
+    older: [],
   };
 
   const now = new Date();
@@ -25,15 +39,21 @@ const groupChatsByDate = (chats) => {
 
   chats.forEach((chat) => {
     // Convert Firestore Timestamp to JavaScript Date
-    const chatDate = chat.createdAt?.toDate ? chat.createdAt.toDate() : new Date(chat.createdAt);
+    const chatDate = chat.createdAt?.toDate
+      ? chat.createdAt.toDate()
+      : new Date(chat.createdAt);
 
     if (isToday(chatDate)) {
       groups.today.push(chat);
     } else if (isYesterday(chatDate)) {
       groups.yesterday.push(chat);
-    } else if (isWithinInterval(chatDate, { start: sevenDaysAgo, end: subDays(now, 2) })) {
+    } else if (
+      isWithinInterval(chatDate, { start: sevenDaysAgo, end: subDays(now, 2) })
+    ) {
       groups.previous7Days.push(chat);
-    } else if (isWithinInterval(chatDate, { start: thirtyDaysAgo, end: sevenDaysAgo })) {
+    } else if (
+      isWithinInterval(chatDate, { start: thirtyDaysAgo, end: sevenDaysAgo })
+    ) {
       groups.previous30Days.push(chat);
     } else {
       groups.older.push(chat);
@@ -43,7 +63,12 @@ const groupChatsByDate = (chats) => {
   return groups;
 };
 
-export default function ChatHistory({ user, activeChatId, onChatSelect, onNewChat }) {
+export default function ChatHistory({
+  user,
+  activeChatId,
+  onChatSelect,
+  onNewChat,
+}) {
   const [chats, setChats] = useState([]);
   const [loading, setLoading] = useState(true);
   const [hoveredChatId, setHoveredChatId] = useState(null);
@@ -51,48 +76,56 @@ export default function ChatHistory({ user, activeChatId, onChatSelect, onNewCha
   useEffect(() => {
     if (!user) return;
 
-    // Query Firestore for user's chats
-    const chatsRef = collection(db, 'chats');
-    const q = query(
-      chatsRef,
-      where('userId', '==', user.uid),
-      orderBy('createdAt', 'desc')
-    );
+    try {
+      // Query Firestore for user's chats
+      const chatsRef = collection(db, "chats");
+      const q = query(
+        chatsRef,
+        where("userId", "==", user.uid),
+        orderBy("createdAt", "desc")
+      );
 
-    // Subscribe to real-time updates
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        const chatData = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data()
-        }));
-        setChats(chatData);
-        setLoading(false);
-      },
-      (error) => {
-        console.error('Error fetching chats:', error);
-        setLoading(false);
-      }
-    );
+      // Subscribe to real-time updates
+      const unsubscribe = onSnapshot(
+        q,
+        (snapshot) => {
+          const chatData = snapshot.docs.map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+          }));
+          setChats(chatData);
+          setLoading(false);
+        },
+        (error) => {
+          console.error("Error fetching chats:", error);
+          console.warn(
+            "Firestore may not be enabled. Please enable it in Firebase Console."
+          );
+          setLoading(false);
+        }
+      );
 
-    // Cleanup subscription on unmount
-    return () => unsubscribe();
+      // Cleanup subscription on unmount
+      return () => unsubscribe();
+    } catch (error) {
+      console.error("Firestore initialization error:", error);
+      setLoading(false);
+    }
   }, [user]);
 
   const handleDeleteChat = async (e, chatId) => {
     e.stopPropagation(); // Prevent chat selection when clicking delete
-    
-    if (!window.confirm('Are you sure you want to delete this conversation?')) {
+
+    if (!window.confirm("Are you sure you want to delete this conversation?")) {
       return;
     }
 
     try {
-      await deleteDoc(doc(db, 'chats', chatId));
-      console.log('Chat deleted:', chatId);
+      await deleteDoc(doc(db, "chats", chatId));
+      console.log("Chat deleted:", chatId);
     } catch (error) {
-      console.error('Error deleting chat:', error);
-      alert('Failed to delete chat. Please try again.');
+      console.error("Error deleting chat:", error);
+      alert("Failed to delete chat. Please try again.");
     }
   };
 
@@ -108,17 +141,17 @@ export default function ChatHistory({ user, activeChatId, onChatSelect, onNewCha
         onMouseLeave={() => setHoveredChatId(null)}
         className={`w-full text-left px-3 py-2.5 rounded-lg transition-all group relative ${
           isActive
-            ? 'bg-[#212121] text-white'
-            : 'text-gray-300 hover:bg-[#212121] hover:text-white'
+            ? "bg-gradient-to-r from-teal-600/20 to-teal-500/20 border border-teal-500/30 text-teal-100"
+            : "text-gray-300 hover:bg-teal-900/20 hover:text-white"
         }`}
       >
         <div className="flex items-center gap-2 pr-8">
           <MessageSquare className="w-4 h-4 flex-shrink-0" />
           <span className="text-sm truncate flex-1">
-            {chat.title || 'Untitled Chat'}
+            {chat.title || "Untitled Chat"}
           </span>
         </div>
-        
+
         {/* Delete button - shows on hover */}
         {isHovered && (
           <button
@@ -138,12 +171,10 @@ export default function ChatHistory({ user, activeChatId, onChatSelect, onNewCha
 
     return (
       <div className="mb-4">
-        <h3 className="text-xs text-gray-500 font-medium px-3 mb-2 uppercase tracking-wide">
+        <h3 className="text-xs text-teal-500/70 font-medium px-3 mb-2 uppercase tracking-wide">
           {title}
         </h3>
-        <div className="space-y-1">
-          {chats.map(renderChatItem)}
-        </div>
+        <div className="space-y-1">{chats.map(renderChatItem)}</div>
       </div>
     );
   };
@@ -151,11 +182,11 @@ export default function ChatHistory({ user, activeChatId, onChatSelect, onNewCha
   const groupedChats = groupChatsByDate(chats);
 
   const handleSignOut = async () => {
-    if (window.confirm('Are you sure you want to sign out?')) {
+    if (window.confirm("Are you sure you want to sign out?")) {
       try {
         await signOut(auth);
       } catch (error) {
-        console.error('Sign out error:', error);
+        console.error("Sign out error:", error);
       }
     }
   };
@@ -166,10 +197,10 @@ export default function ChatHistory({ user, activeChatId, onChatSelect, onNewCha
       <div className="p-3 border-b border-gray-800">
         <button
           onClick={onNewChat}
-          className="w-full flex items-center gap-2 px-3 py-2 bg-[#212121] hover:bg-[#2a2a2a] rounded-lg transition-colors"
+          className="w-full flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-teal-600/20 to-teal-500/20 hover:from-teal-600/30 hover:to-teal-500/30 border border-teal-500/30 rounded-lg transition-all duration-300"
         >
-          <Plus className="w-4 h-4" />
-          <span className="text-sm font-medium">New Chat</span>
+          <Plus className="w-4 h-4 text-teal-400" />
+          <span className="text-sm font-medium text-teal-100">New Chat</span>
         </button>
       </div>
 
@@ -184,15 +215,17 @@ export default function ChatHistory({ user, activeChatId, onChatSelect, onNewCha
           <div className="text-center py-8 px-4">
             <MessageSquare className="w-8 h-8 text-gray-600 mx-auto mb-2" />
             <p className="text-sm text-gray-500">No conversations yet</p>
-            <p className="text-xs text-gray-600 mt-1">Start a new chat to begin</p>
+            <p className="text-xs text-gray-600 mt-1">
+              Start a new chat to begin
+            </p>
           </div>
         ) : (
           <>
-            {renderGroup('Today', groupedChats.today)}
-            {renderGroup('Yesterday', groupedChats.yesterday)}
-            {renderGroup('Previous 7 Days', groupedChats.previous7Days)}
-            {renderGroup('Previous 30 Days', groupedChats.previous30Days)}
-            {renderGroup('Older', groupedChats.older)}
+            {renderGroup("Today", groupedChats.today)}
+            {renderGroup("Yesterday", groupedChats.yesterday)}
+            {renderGroup("Previous 7 Days", groupedChats.previous7Days)}
+            {renderGroup("Previous 30 Days", groupedChats.previous30Days)}
+            {renderGroup("Older", groupedChats.older)}
           </>
         )}
       </div>
@@ -201,13 +234,15 @@ export default function ChatHistory({ user, activeChatId, onChatSelect, onNewCha
       <div className="p-3 border-t border-gray-800">
         <button
           onClick={handleSignOut}
-          className="w-full flex items-center gap-3 px-3 py-2 text-sm text-gray-300 hover:bg-[#212121] rounded-lg transition-colors group"
+          className="w-full flex items-center gap-3 px-3 py-2 text-sm text-gray-300 hover:bg-teal-900/20 rounded-lg transition-colors group"
         >
           <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center text-white font-semibold flex-shrink-0">
-            {user?.email?.charAt(0).toUpperCase() || 'U'}
+            {user?.email?.charAt(0).toUpperCase() || "U"}
           </div>
           <div className="flex-1 text-left truncate">
-            <p className="text-xs text-white truncate font-medium">{user?.displayName || user?.email}</p>
+            <p className="text-xs text-white truncate font-medium">
+              {user?.displayName || user?.email}
+            </p>
           </div>
           <LogOut className="w-4 h-4 text-gray-500 group-hover:text-gray-300" />
         </button>

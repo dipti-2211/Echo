@@ -42,18 +42,14 @@ export default function App() {
     <div className="min-h-screen bg-richBlack">
       {user ? (
         <div className="flex h-screen">
-          <ChatHistory
-            user={user}
+          <ChatHistory 
+            user={user} 
             activeChatId={activeChatId}
             onChatSelect={handleChatSelect}
             onNewChat={handleNewChat}
           />
           <div className="flex-1">
-            <Chat
-              user={user}
-              activeChatId={activeChatId}
-              onNewChat={handleNewChat}
-            />
+            <Chat user={user} activeChatId={activeChatId} onNewChat={handleNewChat} />
           </div>
         </div>
       ) : (

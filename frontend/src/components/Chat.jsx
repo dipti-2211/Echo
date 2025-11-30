@@ -1,7 +1,14 @@
 import React, { useState, useRef, useEffect } from "react";
 import { signOut } from "firebase/auth";
 import { auth, db } from "../firebaseConfig";
-import { collection, addDoc, updateDoc, doc, getDoc, serverTimestamp } from "firebase/firestore";
+import {
+  collection,
+  addDoc,
+  updateDoc,
+  doc,
+  getDoc,
+  serverTimestamp,
+} from "firebase/firestore";
 import axios from "axios";
 import { Send, LogOut, Bot, User } from "lucide-react";
 
@@ -52,45 +59,43 @@ export default function Chat({ user, activeChatId, onNewChat }) {
 
   const loadChat = async (chatId) => {
     try {
-      const chatDoc = await getDoc(doc(db, 'chats', chatId));
+      const chatDoc = await getDoc(doc(db, "chats", chatId));
       if (chatDoc.exists()) {
         const chatData = chatDoc.data();
         setMessages(chatData.messages || []);
         setCurrentChatId(chatId);
       }
     } catch (error) {
-      console.error('Error loading chat:', error);
+      console.error("Error loading chat:", error);
     }
   };
 
   const saveOrUpdateChat = async (userMessage, aiMessage) => {
     try {
-      const newMessages = [
-        ...messages,
-        userMessage,
-        aiMessage
-      ];
+      const newMessages = [...messages, userMessage, aiMessage];
 
       if (currentChatId) {
         // Update existing chat
-        await updateDoc(doc(db, 'chats', currentChatId), {
+        await updateDoc(doc(db, "chats", currentChatId), {
           messages: newMessages,
-          updatedAt: serverTimestamp()
+          updatedAt: serverTimestamp(),
         });
       } else {
         // Create new chat
-        const chatTitle = userMessage.content.slice(0, 50) + (userMessage.content.length > 50 ? '...' : '');
-        const chatRef = await addDoc(collection(db, 'chats'), {
+        const chatTitle =
+          userMessage.content.slice(0, 50) +
+          (userMessage.content.length > 50 ? "..." : "");
+        const chatRef = await addDoc(collection(db, "chats"), {
           userId: user.uid,
           title: chatTitle,
           messages: newMessages,
           createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp()
+          updatedAt: serverTimestamp(),
         });
         setCurrentChatId(chatRef.id);
       }
     } catch (error) {
-      console.error('Error saving chat:', error);
+      console.error("Error saving chat:", error);
     }
   };
 
@@ -129,12 +134,12 @@ export default function Chat({ user, activeChatId, onNewChat }) {
       if (response.data.success) {
         const aiMessage = {
           id: Date.now() + 1,
-          role: 'assistant',
+          role: "assistant",
           content: cleanMarkdown(response.data.response), // Clean markdown
           timestamp: new Date().toISOString(),
         };
         setMessages((prev) => [...prev, aiMessage]);
-        
+
         // Save to Firestore
         await saveOrUpdateChat(userMessage, aiMessage);
       } else {
@@ -172,12 +177,14 @@ export default function Chat({ user, activeChatId, onNewChat }) {
       {/* Header - Simplified without logout */}
       <header className="glass border-b border-subtleGrey px-6 py-4 flex items-center">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-darkZinc flex items-center justify-center">
-            <Bot className="w-5 h-5 text-primaryWhite" />
+          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-teal-600 to-teal-700 flex items-center justify-center shadow-lg shadow-teal-500/30">
+            <Bot className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h1 className="font-semibold">AI Assistant</h1>
-            <p className="text-sm text-mutedGrey">Always here to help</p>
+            <h1 className="font-semibold">Echo</h1>
+            <p className="text-sm text-mutedGrey">
+              Where your thoughts echo through intelligence
+            </p>
           </div>
         </div>
       </header>
@@ -187,14 +194,12 @@ export default function Chat({ user, activeChatId, onNewChat }) {
         <div className="max-w-4xl mx-auto space-y-6">
           {messages.length === 0 ? (
             <div className="text-center py-12 animate-fade-in">
-              <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-darkZinc mb-6">
-                <Bot className="w-10 h-10 text-primaryWhite" />
+              <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-br from-teal-600 to-teal-700 mb-6 shadow-xl shadow-teal-500/30">
+                <Bot className="w-10 h-10 text-white" />
               </div>
-              <h2 className="text-2xl font-semibold mb-2">
-                Start a conversation
-              </h2>
+              <h2 className="text-2xl font-semibold mb-2">Welcome to Echo</h2>
               <p className="text-mutedGrey mb-8">
-                Ask me anything. I'm here to help!
+                Where your thoughts echo through intelligence
               </p>
 
               {/* Starter Prompts */}
@@ -208,7 +213,7 @@ export default function Chat({ user, activeChatId, onNewChat }) {
                   <button
                     key={prompt}
                     onClick={() => setInput(prompt)}
-                    className="glass px-4 py-3 rounded-xl text-left hover:bg-darkZinc transition-all"
+                    className="glass px-4 py-3 rounded-xl text-left hover:bg-teal-900/20 hover:border-teal-500/30 transition-all duration-300"
                   >
                     <p className="text-sm">{prompt}</p>
                   </button>
@@ -224,8 +229,8 @@ export default function Chat({ user, activeChatId, onNewChat }) {
                 }`}
               >
                 {message.role === "assistant" && (
-                  <div className="w-8 h-8 rounded-full bg-darkZinc flex items-center justify-center flex-shrink-0">
-                    <Bot className="w-4 h-4 text-primaryWhite" />
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-teal-600 to-teal-700 flex items-center justify-center flex-shrink-0 shadow-md shadow-teal-500/30">
+                    <Bot className="w-4 h-4 text-white" />
                   </div>
                 )}
 
@@ -257,14 +262,14 @@ export default function Chat({ user, activeChatId, onNewChat }) {
           {/* Typing Indicator */}
           {loading && (
             <div className="flex gap-4 message-enter">
-              <div className="w-8 h-8 rounded-full bg-darkZinc flex items-center justify-center flex-shrink-0">
-                <Bot className="w-4 h-4 text-primaryWhite" />
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-teal-600 to-teal-700 flex items-center justify-center flex-shrink-0 shadow-md shadow-teal-500/30">
+                <Bot className="w-4 h-4 text-white" />
               </div>
               <div className="glass px-4 py-3 rounded-2xl">
                 <div className="flex gap-1">
-                  <div className="w-2 h-2 rounded-full bg-mutedGrey typing-dot"></div>
-                  <div className="w-2 h-2 rounded-full bg-mutedGrey typing-dot"></div>
-                  <div className="w-2 h-2 rounded-full bg-mutedGrey typing-dot"></div>
+                  <div className="w-2 h-2 rounded-full bg-teal-400 typing-dot"></div>
+                  <div className="w-2 h-2 rounded-full bg-teal-400 typing-dot"></div>
+                  <div className="w-2 h-2 rounded-full bg-teal-400 typing-dot"></div>
                 </div>
               </div>
             </div>
@@ -292,7 +297,7 @@ export default function Chat({ user, activeChatId, onNewChat }) {
                 placeholder="Type your message..."
                 disabled={loading}
                 rows={1}
-                className="w-full bg-transparent text-primaryWhite placeholder-mutedGrey resize-none outline-none disabled:opacity-50"
+                className="w-full bg-transparent text-primaryWhite placeholder-teal-600/40 resize-none outline-none disabled:opacity-50"
               />
             </div>
             <button

@@ -75,8 +75,10 @@ export default function Login() {
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-darkZinc mb-4">
               <LogIn className="w-8 h-8 text-primaryWhite" />
             </div>
-            <h1 className="text-3xl font-bold mb-2">Welcome to AI Chat</h1>
-            <p className="text-mutedGrey">Sign in to start your conversation</p>
+            <h1 className="text-3xl font-bold mb-2">Welcome to Echo</h1>
+            <p className="text-mutedGrey">
+              Where your thoughts echo through intelligence
+            </p>
           </div>
 
           {/* Error Message */}
