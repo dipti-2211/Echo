@@ -66,50 +66,44 @@ const mockAIService = async (message) => {
     if (lowerMsg.match(/^\d+\s*[\+\-\*\/]\s*\d+$/)) {
         try {
             const result = eval(lowerMsg);
-            response = `The answer is: ${result}`;
+            response = `## 🔢 Calculation Result\n\nThe answer is: **${result}**\n\n✅ Calculation: \`${lowerMsg} = ${result}\``;
         } catch (e) {
-            response = `I calculated that for you: ${lowerMsg} = ${eval(lowerMsg)}`;
+            response = `## ⚠️ Calculation Error\n\nI couldn't process that calculation. Please check your syntax.`;
         }
     }
     // Greetings
     else if (lowerMsg.match(/^(hi|hello|hey|greetings)/)) {
         const greetings = [
-            "Hello! How can I help you today?",
-            "Hi there! What would you like to know?",
-            "Hey! I'm here to assist you. What's on your mind?",
-            "Greetings! How may I assist you?"
+            "## 👋 Hello!\n\nHow can I help you today? Feel free to ask me anything!",
+            "## 🌟 Hi there!\n\nWhat would you like to know? I'm here to assist you.",
+            "## 👋 Hey!\n\nI'm **Echo**, your AI assistant. What's on your mind?",
+            "## 🙌 Greetings!\n\nHow may I assist you today?"
         ];
         response = greetings[Math.floor(Math.random() * greetings.length)];
     }
     // What/Who/How questions
     else if (lowerMsg.startsWith('what') || lowerMsg.startsWith('who') || lowerMsg.startsWith('how')) {
-        response = `That's a great question about "${message}". While I'm a demonstration chatbot, in a real implementation, I would provide detailed information by querying a knowledge base or using an AI model like GPT-4. For now, I'm showing you how the chat interface works!`;
+        response = `## 💡 Great Question!\n\nYou asked about: **"${message}"**\n\n⚠️ **Demo Mode Active**\n\nCurrently running in demonstration mode. In a production environment with real AI integration (OpenAI, Groq, etc.), I would provide:\n\n• Detailed, comprehensive answers\n• Step-by-step explanations\n• Relevant examples and use cases\n• Links to additional resources\n\nThis demo showcases the chat interface and user experience! 🚀`;
     }
     // Tell me about
     else if (lowerMsg.includes('tell me about') || lowerMsg.includes('explain')) {
         const topic = message.split(/tell me about|explain/i)[1]?.trim() || 'that topic';
-        response = `I'd love to explain ${topic}! In a production version with real AI (like OpenAI's GPT or Groq), I would provide a comprehensive explanation. This is a demo showing the chat flow and user experience.`;
+        response = `## 📚 Explanation Request\n\n### Topic: ${topic}\n\n⚠️ **Demo Mode**\n\nI'd love to explain **${topic}** in detail! In production with real AI (OpenAI GPT, Groq, Claude):\n\n**What I would provide:**\n• Clear definition and overview\n• Key concepts broken down step-by-step\n• Practical examples and applications\n• Best practices and tips\n\n✨ This is a demo showing the chat flow and visual formatting capabilities!`;
     }
     // Help request
     else if (lowerMsg.includes('help') || lowerMsg === '?') {
-        response = `I'm here to help! This is a demonstration chatbot. Try asking me:
-• Math questions (e.g., "2+2" or "15*7")
-• Greetings (e.g., "Hello")
-• General questions (e.g., "What is AI?")
-
-In production, this would be connected to a real AI like GPT-4, Claude, or Groq for intelligent responses!`;
+        response = `## 🆘 How Can I Help?\n\n**Demo Mode Active** - Try asking me:\n\n### 🔢 Math Questions\n• Simple calculations: \`2+2\` or \`15*7\`\n\n### 👋 Greetings\n• Say hello: \`Hello\`, \`Hi\`, \`Hey\`\n\n### ❓ Questions\n• Ask: \`What is AI?\` or \`How does X work?\`\n\n### 💻 Code Examples\n• Request: \`Show me a JavaScript function\`\n\n---\n\n✨ **In Production:** Connect to OpenAI, Claude, or Groq API for intelligent, context-aware responses with full AI capabilities!`;
     }
     // Code questions
     else if (lowerMsg.includes('code') || lowerMsg.includes('programming') || lowerMsg.includes('javascript')) {
-        response = `Great question about coding! In a production environment, I would provide code examples, explanations, and best practices. This demo shows the chat interface - connect to OpenAI, Claude, or Groq API to get real coding assistance!`;
+        response = `## 💻 Code Question Detected!\n\n**Demo Mode Active**\n\nIn a production environment, I would provide:\n\n### What You'd Get:\n✅ Complete, runnable code examples\n✅ Line-by-line explanations\n✅ Best practices and optimization tips\n✅ Error handling patterns\n\n### Example Format:\n\`\`\`javascript\n// I would provide properly formatted code here\nfunction example() {\n  return "Like this!";\n}\n\`\`\`\n\n🚀 **Next Step:** Connect to OpenAI, Claude, or Groq API for real coding assistance!`;
     }
     // Default intelligent response
     else {
         const intelligentResponses = [
-            `Interesting point about "${message}". In a real-world scenario with AI integration (OpenAI, Groq, etc.), I would provide a detailed, context-aware response analyzing your question from multiple angles.`,
-            `I understand you're interested in "${message}". This demo showcases the chat UI and backend flow. Connect to a real AI API to get intelligent, nuanced responses to questions like this!`,
-            `"${message}" - that's worth exploring! Right now I'm running in demo mode. Integrate with GPT-4, Claude, or Groq to get thoughtful, accurate answers to queries like yours.`,
-            `You mentioned "${message}". This chat interface is ready for production - just add your AI API key (OpenAI/Groq) to get real intelligent responses instead of these demo messages!`
+            `## 🤔 Interesting Question!\n\nYou mentioned: **"${message}"**\n\n⚠️ **Demo Mode Active**\n\nIn a real AI-powered environment:\n\n• I would analyze your question from multiple angles\n• Provide detailed, context-aware responses\n• Include relevant examples and explanations\n• Structure information with clear headings and formatting\n\n✨ **Connect to a real AI API** (OpenAI/Groq) to unlock full intelligent responses!`,
+            `## 💭 About: "${message}"\n\n**Demo Chatbot Response**\n\nThis showcases the chat UI and backend flow.\n\n### In Production:\n• Real-time AI-powered answers\n• Context-aware conversations\n• Structured, professional responses\n• Code examples with syntax highlighting\n\n🚀 Add your AI API key to get intelligent responses!`,
+            `## 🎯 "${message}"\n\n**Demo Mode** - That's worth exploring!\n\n### What Real AI Would Provide:\n✅ Thoughtful, accurate answers\n✅ Step-by-step explanations\n✅ Relevant examples and use cases\n✅ Professional markdown formatting\n\n💡 Integrate with GPT-4, Claude, or Groq for production-ready responses!`
         ];
         response = intelligentResponses[Math.floor(Math.random() * intelligentResponses.length)];
     }
@@ -134,7 +128,32 @@ const groqAIService = async (message) => {
             messages: [
                 {
                     role: 'system',
-                    content: 'You are a helpful, intelligent AI assistant. Provide clear, accurate, and concise responses. Be friendly and professional.'
+                    content: `You are Echo, an advanced AI assistant. Your goal is to provide comprehensive, accurate, and visually polished responses. 
+
+**Response Guidelines:**
+- Always use Markdown formatting for clarity and professionalism
+- Use **Bold** for emphasis on key terms and important concepts
+- Use \`code blocks\` for technical terms, commands, or code snippets
+- Use clear **## Headings** to structure your answers into logical sections
+- For complex questions, break down your response step-by-step with numbered lists
+- Use bullet points (•) for listing features, benefits, or options
+- When providing code examples, use proper syntax highlighting with language tags
+- Include relevant emojis sparingly for visual appeal (✅ ❌ 💡 🚀 etc.)
+
+**Tone & Style:**
+- Maintain a professional yet encouraging and friendly tone
+- Be concise but comprehensive - avoid unnecessary verbosity
+- When explaining technical concepts, start simple then add depth
+- Always validate and acknowledge the user's question before answering
+- End complex explanations with a brief summary or next steps
+
+**Special Instructions:**
+- If asked for code, provide complete, runnable examples with explanations
+- For comparisons, use tables when appropriate
+- For tutorials, break into clear steps with headings
+- Always structure your response with visual hierarchy (headings, subheadings, lists)
+
+Remember: You are Echo - where thoughts echo through intelligence. Be helpful, accurate, and visually engaging.`
                 },
                 {
                     role: 'user',
@@ -158,6 +177,38 @@ const groqAIService = async (message) => {
     } catch (error) {
         console.error('Groq API error:', error);
         throw error;
+    }
+};
+
+// Generate Chat Title Service
+const generateChatTitle = async (userMessage) => {
+    try {
+        if (groqClient) {
+            const completion = await groqClient.chat.completions.create({
+                model: process.env.GROQ_MODEL || 'llama-3.3-70b-versatile',
+                messages: [
+                    {
+                        role: 'system',
+                        content: 'Summarize this prompt in 3-5 words for a chat title. Do not use quotes. Be concise and descriptive.'
+                    },
+                    {
+                        role: 'user',
+                        content: userMessage
+                    }
+                ],
+                max_tokens: 20,
+                temperature: 0.7
+            });
+
+            return completion.choices[0].message.content.trim();
+        } else {
+            // Mock title generation
+            const words = userMessage.split(' ').slice(0, 4).join(' ');
+            return words.length > 30 ? words.substring(0, 30) + '...' : words;
+        }
+    } catch (error) {
+        console.error('Title generation error:', error);
+        return 'New Conversation';
     }
 };
 
@@ -199,6 +250,38 @@ app.post('/api/chat', verifyToken, async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Error processing your message',
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
+    }
+});
+
+// Generate Chat Title endpoint - Requires valid Firebase token
+app.post('/api/generate-title', verifyToken, async (req, res) => {
+    try {
+        const { message } = req.body;
+
+        // Validate message
+        if (!message || typeof message !== 'string' || !message.trim()) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid message format'
+            });
+        }
+
+        console.log(`Generating title for: "${message.substring(0, 50)}..."`);
+
+        const title = await generateChatTitle(message.trim());
+
+        res.json({
+            success: true,
+            title: title
+        });
+
+    } catch (error) {
+        console.error('Title generation error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error generating title',
             error: process.env.NODE_ENV === 'development' ? error.message : undefined
         });
     }

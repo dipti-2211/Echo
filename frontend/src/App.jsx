@@ -9,6 +9,7 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeChatId, setActiveChatId] = useState(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -21,10 +22,20 @@ export default function App() {
 
   const handleNewChat = () => {
     setActiveChatId(null);
+    // Trigger a reset signal that Chat component will pick up
+    // This ensures messages are cleared and input is focused
   };
 
   const handleChatSelect = (chatId) => {
     setActiveChatId(chatId);
+    // Close sidebar on mobile after selecting a chat
+    if (window.innerWidth < 768) {
+      setIsSidebarOpen(false);
+    }
+  };
+
+  const toggleSidebar = () => {
+    setIsSidebarOpen(!isSidebarOpen);
   };
 
   if (loading) {
@@ -41,15 +52,34 @@ export default function App() {
   return (
     <div className="min-h-screen bg-richBlack">
       {user ? (
-        <div className="flex h-screen">
-          <ChatHistory 
-            user={user} 
+        <div className="flex h-screen overflow-hidden relative">
+          {/* Mobile Overlay - Only visible when sidebar is open on mobile */}
+          {isSidebarOpen && (
+            <div
+              className="fixed inset-0 bg-black/50 z-40 md:hidden"
+              onClick={() => setIsSidebarOpen(false)}
+            />
+          )}
+
+          {/* Sidebar */}
+          <ChatHistory
+            user={user}
             activeChatId={activeChatId}
             onChatSelect={handleChatSelect}
             onNewChat={handleNewChat}
+            isSidebarOpen={isSidebarOpen}
+            toggleSidebar={toggleSidebar}
           />
-          <div className="flex-1">
-            <Chat user={user} activeChatId={activeChatId} onNewChat={handleNewChat} />
+
+          {/* Main Chat Area */}
+          <div className="flex-1 flex flex-col overflow-hidden">
+            <Chat
+              user={user}
+              activeChatId={activeChatId}
+              onNewChat={handleNewChat}
+              isSidebarOpen={isSidebarOpen}
+              toggleSidebar={toggleSidebar}
+            />
           </div>
         </div>
       ) : (

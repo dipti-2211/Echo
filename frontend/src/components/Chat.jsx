@@ -10,11 +10,29 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 import axios from "axios";
-import { Send, LogOut, Bot, User } from "lucide-react";
+import {
+  Send,
+  LogOut,
+  Bot,
+  User,
+  Edit3,
+  Menu,
+  PanelLeftOpen,
+  Paperclip,
+} from "lucide-react";
+import CodeBlock from "./CodeBlock";
+import TextareaAutosize from "react-textarea-autosize";
+import TypewriterText from "./TypewriterText";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5001";
 
-export default function Chat({ user, activeChatId, onNewChat }) {
+export default function Chat({
+  user,
+  activeChatId,
+  onNewChat,
+  isSidebarOpen,
+  toggleSidebar,
+}) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -24,18 +42,6 @@ export default function Chat({ user, activeChatId, onNewChat }) {
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
-
-  // Clean markdown formatting from AI responses
-  const cleanMarkdown = (text) => {
-    return text
-      .replace(/\*\*(.+?)\*\*/g, "$1") // Remove bold **text**
-      .replace(/\*(.+?)\*/g, "$1") // Remove italic *text*
-      .replace(/`(.+?)`/g, "$1") // Remove code `text`
-      .replace(/^#+\s/gm, "") // Remove headers
-      .replace(/^\*\s/gm, "• ") // Convert * lists to bullets
-      .replace(/^-\s/gm, "• ") // Convert - lists to bullets
-      .trim();
   };
 
   useEffect(() => {
@@ -50,10 +56,15 @@ export default function Chat({ user, activeChatId, onNewChat }) {
   useEffect(() => {
     if (activeChatId && activeChatId !== currentChatId) {
       loadChat(activeChatId);
-    } else if (!activeChatId) {
-      // New chat
+    } else if (!activeChatId && activeChatId !== currentChatId) {
+      // New chat - reset everything
       setMessages([]);
       setCurrentChatId(null);
+      setInput("");
+      // Auto-focus input for immediate typing
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 100);
     }
   }, [activeChatId]);
 
@@ -70,7 +81,11 @@ export default function Chat({ user, activeChatId, onNewChat }) {
     }
   };
 
-  const saveOrUpdateChat = async (userMessage, aiMessage) => {
+  const saveOrUpdateChat = async (
+    userMessage,
+    aiMessage,
+    isNewChat = false
+  ) => {
     try {
       const newMessages = [...messages, userMessage, aiMessage];
 
@@ -81,48 +96,37 @@ export default function Chat({ user, activeChatId, onNewChat }) {
           updatedAt: serverTimestamp(),
         });
       } else {
-        // Create new chat
-        const chatTitle =
-          userMessage.content.slice(0, 50) +
-          (userMessage.content.length > 50 ? "..." : "");
+        // Create new chat with temporary title
+        const tempTitle = "New Chat";
         const chatRef = await addDoc(collection(db, "chats"), {
           userId: user.uid,
-          title: chatTitle,
+          title: tempTitle,
           messages: newMessages,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
         });
         setCurrentChatId(chatRef.id);
+
+        // Auto-rename after first exchange (only for new chats)
+        if (isNewChat) {
+          console.log(`🚀 Triggering auto-rename for first exchange`);
+          generateAndUpdateTitle(chatRef.id, userMessage.content);
+        }
       }
     } catch (error) {
       console.error("Error saving chat:", error);
     }
   };
 
-  const handleSend = async (e) => {
-    e.preventDefault();
-
-    if (!input.trim() || loading) return;
-
-    const userMessage = {
-      id: Date.now(),
-      role: "user",
-      content: input.trim(),
-      timestamp: new Date().toISOString(),
-    };
-
-    setMessages((prev) => [...prev, userMessage]);
-    setInput("");
-    setLoading(true);
-
+  // Auto-rename function - runs in background
+  const generateAndUpdateTitle = async (chatId, firstMessage) => {
     try {
-      // Get Firebase ID token
+      console.log(`🏷️ Generating title for chat ${chatId}...`);
       const idToken = await user.getIdToken();
 
-      // Send to backend
       const response = await axios.post(
-        `${API_URL}/api/chat`,
-        { message: userMessage.content },
+        `${API_URL}/api/generate-title`,
+        { message: firstMessage },
         {
           headers: {
             Authorization: `Bearer ${idToken}`,
@@ -131,17 +135,82 @@ export default function Chat({ user, activeChatId, onNewChat }) {
         }
       );
 
+      console.log("📡 Title generation response:", response.data);
+
+      if (response.data.success) {
+        const newTitle = response.data.title;
+
+        // Update Firestore with new title
+        await updateDoc(doc(db, "chats", chatId), {
+          title: newTitle,
+          updatedAt: serverTimestamp(),
+        });
+
+        console.log(`✅ Chat renamed to: "${newTitle}"`);
+      }
+    } catch (error) {
+      console.error("❌ Error generating title:", error);
+      console.error("Error details:", error.response?.data);
+      // Silently fail - not critical to user experience
+    }
+  };
+
+  const handleSend = async (e) => {
+    e.preventDefault();
+    e.stopPropagation(); // Prevent event bubbling
+
+    // Guard: prevent multiple simultaneous submissions
+    if (!input.trim() || loading) {
+      console.log("Blocked: empty input or already loading");
+      return;
+    }
+
+    const userMessage = {
+      id: Date.now(),
+      role: "user",
+      content: input.trim(),
+      timestamp: new Date().toISOString(),
+    };
+
+    // Clear input and set loading IMMEDIATELY
+    const messageToSend = input.trim();
+    const isNewChat = messages.length === 0 && !currentChatId;
+    setInput("");
+    setMessages((prev) => [...prev, userMessage]);
+    setLoading(true);
+    console.log("Message sent, loading started", { isNewChat });
+
+    try {
+      // Get Firebase ID token
+      const idToken = await user.getIdToken();
+
+      // Send to backend
+      const response = await axios.post(
+        `${API_URL}/api/chat`,
+        { message: messageToSend },
+        {
+          headers: {
+            Authorization: `Bearer ${idToken}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      console.log("Response received:", response.data.success);
+
       if (response.data.success) {
         const aiMessage = {
           id: Date.now() + 1,
           role: "assistant",
-          content: cleanMarkdown(response.data.response), // Clean markdown
+          content: response.data.response, // ReactMarkdown will handle formatting
           timestamp: new Date().toISOString(),
         };
         setMessages((prev) => [...prev, aiMessage]);
 
-        // Save to Firestore
-        await saveOrUpdateChat(userMessage, aiMessage);
+        // Save to Firestore (don't await - let it happen in background)
+        saveOrUpdateChat(userMessage, aiMessage, isNewChat).catch((err) =>
+          console.error("Error saving to Firestore:", err)
+        );
       } else {
         throw new Error(response.data.message || "Failed to get response");
       }
@@ -160,6 +229,8 @@ export default function Chat({ user, activeChatId, onNewChat }) {
       };
       setMessages((prev) => [...prev, errorMessage]);
     } finally {
+      // Ensure loading is always set to false
+      console.log("Setting loading to false");
       setLoading(false);
     }
   };
@@ -174,145 +245,197 @@ export default function Chat({ user, activeChatId, onNewChat }) {
 
   return (
     <div className="h-screen flex flex-col">
-      {/* Header - Simplified without logout */}
-      <header className="glass border-b border-subtleGrey px-6 py-4 flex items-center">
+      {/* Header with Mobile Hamburger and Desktop Toggle */}
+      <header className="glass border-b border-subtleGrey px-4 md:px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
+          {/* Mobile Hamburger Menu */}
+          <button
+            onClick={toggleSidebar}
+            className="md:hidden p-2 hover:bg-gray-800 rounded-lg transition-colors"
+            title="Open menu"
+          >
+            <Menu className="w-6 h-6 text-white" />
+          </button>
+
+          {/* Desktop Sidebar Toggle - Only show when sidebar is closed */}
+          {!isSidebarOpen && (
+            <button
+              onClick={toggleSidebar}
+              className="hidden md:block p-2 hover:bg-gray-800 rounded-lg transition-colors"
+              title="Open sidebar"
+            >
+              <PanelLeftOpen className="w-5 h-5 text-white" />
+            </button>
+          )}
+
           <div className="w-10 h-10 rounded-full bg-gradient-to-br from-teal-600 to-teal-700 flex items-center justify-center shadow-lg shadow-teal-500/30">
             <Bot className="w-5 h-5 text-white" />
           </div>
           <div>
             <h1 className="font-semibold">Echo</h1>
-            <p className="text-sm text-mutedGrey">
+            <p className="text-sm text-mutedGrey hidden sm:block">
               Where your thoughts echo through intelligence
             </p>
           </div>
         </div>
+
+        {/* Mobile New Chat Button - Only visible on small screens */}
+        <button
+          onClick={onNewChat}
+          className="md:hidden p-2 rounded-lg bg-teal-600/20 hover:bg-teal-600/30 transition-colors"
+          title="New Chat"
+        >
+          <Edit3 className="w-5 h-5 text-teal-400" />
+        </button>
       </header>
 
       {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto custom-scroll px-4 py-6">
-        <div className="max-w-4xl mx-auto space-y-6">
-          {messages.length === 0 ? (
-            <div className="text-center py-12 animate-fade-in">
-              <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-br from-teal-600 to-teal-700 mb-6 shadow-xl shadow-teal-500/30">
-                <Bot className="w-10 h-10 text-white" />
-              </div>
-              <h2 className="text-2xl font-semibold mb-2">Welcome to Echo</h2>
-              <p className="text-mutedGrey mb-8">
-                Where your thoughts echo through intelligence
-              </p>
-
-              {/* Starter Prompts */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-2xl mx-auto">
-                {[
-                  "What can you help me with?",
-                  "Explain quantum computing",
-                  "Write a short story",
-                  "Give me productivity tips",
-                ].map((prompt) => (
-                  <button
-                    key={prompt}
-                    onClick={() => setInput(prompt)}
-                    className="glass px-4 py-3 rounded-xl text-left hover:bg-teal-900/20 hover:border-teal-500/30 transition-all duration-300"
-                  >
-                    <p className="text-sm">{prompt}</p>
-                  </button>
-                ))}
-              </div>
+      <div className="flex-1 overflow-y-auto custom-scroll">
+        {messages.length === 0 ? (
+          <div className="text-center py-12 animate-fade-in px-4">
+            <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-br from-teal-600 to-teal-700 mb-6 shadow-xl shadow-teal-500/30">
+              <Bot className="w-10 h-10 text-white" />
             </div>
-          ) : (
-            messages.map((message) => (
-              <div
-                key={message.id}
-                className={`flex gap-4 message-enter ${
-                  message.role === "user" ? "justify-end" : "justify-start"
-                }`}
-              >
-                {message.role === "assistant" && (
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-teal-600 to-teal-700 flex items-center justify-center flex-shrink-0 shadow-md shadow-teal-500/30">
-                    <Bot className="w-4 h-4 text-white" />
-                  </div>
-                )}
+            <h2 className="text-2xl font-semibold mb-2">Welcome to Echo</h2>
+            <p className="text-mutedGrey mb-8">
+              Where your thoughts echo through intelligence
+            </p>
 
-                <div
-                  className={`max-w-[70%] px-4 py-3 rounded-2xl ${
-                    message.role === "user"
-                      ? "bg-primaryWhite text-richBlack"
-                      : message.isError
-                      ? "bg-red-500/10 border border-red-500/50 text-red-400"
-                      : "glass text-primaryWhite"
-                  }`}
+            {/* Starter Prompts */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-2xl mx-auto">
+              {[
+                "What can you help me with?",
+                "Explain quantum computing",
+                "Write a short story",
+                "Give me productivity tips",
+              ].map((prompt) => (
+                <button
+                  key={prompt}
+                  onClick={() => setInput(prompt)}
+                  className="glass px-4 py-3 rounded-xl text-left hover:bg-teal-900/20 hover:border-teal-500/30 transition-all duration-300"
                 >
-                  <p className="whitespace-pre-wrap">{message.content}</p>
-                  <p className="text-xs mt-2 opacity-50">
-                    {new Date(message.timestamp).toLocaleTimeString()}
-                  </p>
-                </div>
-
-                {message.role === "user" && (
-                  <div className="w-8 h-8 rounded-full bg-primaryWhite text-richBlack flex items-center justify-center flex-shrink-0 font-semibold">
-                    {user.displayName?.charAt(0) ||
-                      user.email.charAt(0).toUpperCase()}
-                  </div>
-                )}
-              </div>
-            ))
-          )}
-
-          {/* Typing Indicator */}
-          {loading && (
-            <div className="flex gap-4 message-enter">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-teal-600 to-teal-700 flex items-center justify-center flex-shrink-0 shadow-md shadow-teal-500/30">
-                <Bot className="w-4 h-4 text-white" />
-              </div>
-              <div className="glass px-4 py-3 rounded-2xl">
-                <div className="flex gap-1">
-                  <div className="w-2 h-2 rounded-full bg-teal-400 typing-dot"></div>
-                  <div className="w-2 h-2 rounded-full bg-teal-400 typing-dot"></div>
-                  <div className="w-2 h-2 rounded-full bg-teal-400 typing-dot"></div>
-                </div>
-              </div>
+                  <p className="text-sm">{prompt}</p>
+                </button>
+              ))}
             </div>
-          )}
+          </div>
+        ) : (
+          <div className="flex flex-col">
+            {messages.map((message) => (
+              <div key={message.id} className="w-full py-8">
+                <div className="max-w-3xl mx-auto px-4 flex gap-4">
+                  {/* Avatar */}
+                  {message.role === "assistant" ? (
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-teal-600 to-teal-700 flex items-center justify-center flex-shrink-0 shadow-md shadow-teal-500/30">
+                      <Bot className="w-5 h-5 text-white" />
+                    </div>
+                  ) : (
+                    <div className="w-8 h-8 rounded-full bg-primaryWhite text-richBlack flex items-center justify-center flex-shrink-0 font-semibold text-sm">
+                      {user.displayName?.charAt(0) ||
+                        user.email.charAt(0).toUpperCase()}
+                    </div>
+                  )}
 
-          <div ref={messagesEndRef} />
-        </div>
+                  {/* Message Content */}
+                  <div className="flex-1 min-w-0">
+                    {message.role === "assistant" ? (
+                      <TypewriterText
+                        content={message.content}
+                        speed={8}
+                        chunkSize={4}
+                      />
+                    ) : (
+                      <p className="text-primaryWhite whitespace-pre-wrap leading-relaxed">
+                        {message.content}
+                      </p>
+                    )}
+
+                    {/* Timestamp */}
+                    <p className="text-xs text-gray-500 mt-2">
+                      {new Date(message.timestamp).toLocaleTimeString()}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
+
+            {/* Typing Indicator */}
+            {loading && (
+              <div className="w-full py-8">
+                <div className="max-w-3xl mx-auto px-4 flex gap-4">
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-teal-600 to-teal-700 flex items-center justify-center flex-shrink-0 shadow-md shadow-teal-500/30">
+                    <Bot className="w-5 h-5 text-white" />
+                  </div>
+                  <div className="flex gap-1 items-center">
+                    <div className="w-2 h-2 rounded-full bg-teal-400 typing-dot"></div>
+                    <div className="w-2 h-2 rounded-full bg-teal-400 typing-dot"></div>
+                    <div className="w-2 h-2 rounded-full bg-teal-400 typing-dot"></div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        <div ref={messagesEndRef} />
       </div>
 
-      {/* Input Area */}
-      <div className="glass border-t border-subtleGrey px-4 py-4">
-        <form onSubmit={handleSend} className="max-w-4xl mx-auto">
-          <div className="flex gap-3 items-end">
-            <div className="flex-1 bg-darkZinc border border-subtleGrey rounded-2xl px-4 py-3 focus-within:ring-2 focus-within:ring-primaryWhite/20 transition-all">
-              <textarea
-                ref={inputRef}
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSend(e);
-                  }
-                }}
-                placeholder="Type your message..."
-                disabled={loading}
-                rows={1}
-                className="w-full bg-transparent text-primaryWhite placeholder-teal-600/40 resize-none outline-none disabled:opacity-50"
-              />
+      {/* Input Area - ChatGPT Style Floating Island */}
+      <div className="border-t border-white/5 bg-gradient-to-t from-[#171717] to-transparent">
+        <div className="max-w-3xl mx-auto px-4 pb-6 pt-4">
+          <form onSubmit={handleSend} className="relative">
+            {/* Input Container */}
+            <div className="bg-[#2f2f2f] rounded-[26px] shadow-xl border border-white/10 overflow-hidden">
+              <div className="flex items-end gap-2 p-3">
+                {/* Attach Button */}
+                <button
+                  type="button"
+                  className="flex-shrink-0 p-2 text-gray-400 hover:text-gray-300 hover:bg-white/5 rounded-lg transition-colors"
+                  title="Attach file"
+                >
+                  <Paperclip className="w-5 h-5" />
+                </button>
+
+                {/* Auto-resize Textarea */}
+                <TextareaAutosize
+                  ref={inputRef}
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSend(e);
+                    }
+                  }}
+                  placeholder="Message Echo..."
+                  disabled={loading}
+                  minRows={1}
+                  maxRows={8}
+                  className="flex-1 bg-transparent text-white placeholder-gray-500 resize-none outline-none py-2 disabled:opacity-50 max-h-[200px] overflow-y-auto custom-scroll"
+                />
+
+                {/* Send Button */}
+                <button
+                  type="submit"
+                  disabled={!input.trim() || loading}
+                  className={`flex-shrink-0 p-2 rounded-lg transition-all ${
+                    input.trim() && !loading
+                      ? "bg-white text-black hover:bg-gray-200"
+                      : "bg-gray-700 text-gray-500 cursor-not-allowed"
+                  }`}
+                  title="Send message"
+                >
+                  <Send className="w-5 h-5" />
+                </button>
+              </div>
             </div>
-            <button
-              type="submit"
-              disabled={!input.trim() || loading}
-              className="px-6 py-3 bg-primaryWhite text-richBlack rounded-xl font-medium hover:bg-opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-            >
-              <Send className="w-4 h-4" />
-              <span>Send</span>
-            </button>
-          </div>
-          <p className="text-xs text-mutedGrey text-center mt-2">
-            Press Enter to send, Shift + Enter for new line
+          </form>
+
+          {/* Footer Disclaimer */}
+          <p className="text-xs text-gray-500 text-center mt-3">
+            Echo can make mistakes. Check important info.
           </p>
-        </form>
+        </div>
       </div>
     </div>
   );

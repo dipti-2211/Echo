@@ -10,7 +10,7 @@ import {
 } from "firebase/firestore";
 import { db, auth } from "../firebaseConfig";
 import { signOut } from "firebase/auth";
-import { Trash2, MessageSquare, Plus, LogOut, Ellipsis } from "lucide-react";
+import { Trash2, MessageSquare, Plus, LogOut, Ellipsis, X } from "lucide-react";
 import {
   isToday,
   isYesterday,
@@ -68,6 +68,8 @@ export default function ChatHistory({
   activeChatId,
   onChatSelect,
   onNewChat,
+  isSidebarOpen,
+  toggleSidebar,
 }) {
   const [chats, setChats] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -82,7 +84,7 @@ export default function ChatHistory({
       const q = query(
         chatsRef,
         where("userId", "==", user.uid),
-        orderBy("createdAt", "desc")
+        orderBy("updatedAt", "desc")
       );
 
       // Subscribe to real-time updates
@@ -93,6 +95,7 @@ export default function ChatHistory({
             id: doc.id,
             ...doc.data(),
           }));
+          console.log("📋 Chats updated:", chatData.length);
           setChats(chatData);
           setLoading(false);
         },
@@ -192,15 +195,51 @@ export default function ChatHistory({
   };
 
   return (
-    <div className="w-[260px] h-screen bg-[#171717] text-white flex flex-col">
-      {/* Header with New Chat button */}
-      <div className="p-3 border-b border-gray-800">
+    <div
+      className={`
+        fixed md:relative inset-y-0 left-0 z-50 
+        w-[260px] h-screen bg-[#171717] text-white flex flex-col
+        transform transition-transform duration-300 ease-in-out
+        ${
+          isSidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+        }
+        ${!isSidebarOpen ? "md:w-0 md:hidden" : ""}
+      `}
+    >
+      {/* Header with New Chat Button and Close Button */}
+      <div className="p-3 border-b border-gray-800 sticky top-0 bg-[#171717] z-10">
+        <div className="flex items-center justify-between mb-3 md:hidden">
+          <h2 className="text-lg font-semibold">Conversations</h2>
+          <button
+            onClick={toggleSidebar}
+            className="p-2 hover:bg-gray-800 rounded-lg transition-colors"
+            title="Close sidebar"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Desktop Close Button */}
+        <div className="hidden md:flex items-center justify-between mb-3">
+          <h2 className="text-sm font-semibold text-gray-400">Chats</h2>
+          <button
+            onClick={toggleSidebar}
+            className="p-1.5 hover:bg-gray-800 rounded-lg transition-colors"
+            title="Close sidebar"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
         <button
           onClick={onNewChat}
-          className="w-full flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-teal-600/20 to-teal-500/20 hover:from-teal-600/30 hover:to-teal-500/30 border border-teal-500/30 rounded-lg transition-all duration-300"
+          className="w-full flex items-center justify-center gap-3 px-4 py-3 bg-[#262626] hover:bg-[#303030] rounded-lg border border-white/10 transition-all duration-200 group"
+          title="Start a new conversation"
         >
-          <Plus className="w-4 h-4 text-teal-400" />
-          <span className="text-sm font-medium text-teal-100">New Chat</span>
+          <Plus className="w-5 h-5 text-white/80 group-hover:text-white" />
+          <span className="text-sm font-medium text-white/90 group-hover:text-white">
+            New Chat
+          </span>
         </button>
       </div>
 
