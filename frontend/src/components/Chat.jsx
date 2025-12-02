@@ -53,6 +53,38 @@ export default function Chat({
     inputRef.current?.focus();
   }, []);
 
+  // Test Firestore write capability on mount
+  useEffect(() => {
+    const testFirestoreWrite = async () => {
+      if (!user) return;
+
+      try {
+        console.log("🧪 Testing Firestore write capability...");
+        const testRef = doc(db, "test", "testDoc");
+        await setDoc(testRef, {
+          test: "hello",
+          timestamp: new Date(),
+          userId: user.uid,
+        });
+        console.log("✅ Firestore write test PASSED - writes are working!");
+      } catch (error) {
+        console.error("❌ Firestore write test FAILED:", error);
+        console.error("Error code:", error.code);
+        console.error("Error message:", error.message);
+        if (error.code === "permission-denied") {
+          console.error(
+            "🔥 PERMISSION DENIED - Check your Firestore security rules!"
+          );
+          console.error("Go to Firebase Console > Firestore Database > Rules");
+        }
+      }
+    };
+
+    if (user) {
+      testFirestoreWrite();
+    }
+  }, [user]);
+
   // Load chat when activeChatId changes
   useEffect(() => {
     if (activeChatId && activeChatId !== currentChatId) {
