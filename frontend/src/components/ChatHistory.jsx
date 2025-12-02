@@ -76,42 +76,60 @@ export default function ChatHistory({
   const [hoveredChatId, setHoveredChatId] = useState(null);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user) {
+      console.log("⚠️ No user, clearing chats");
+      setChats([]);
+      setLoading(false);
+      return;
+    }
+
+    console.log("📡 Setting up chat listener for user:", user.uid);
+    setLoading(true);
 
     try {
-      // Query Firestore for user's chats
+      // Query Firestore for user's chats (NO orderBy to avoid index requirement)
       const chatsRef = collection(db, "chats");
-      const q = query(
-        chatsRef,
-        where("userId", "==", user.uid),
-        orderBy("updatedAt", "desc")
-      );
+      const q = query(chatsRef, where("userId", "==", user.uid));
 
       // Subscribe to real-time updates
       const unsubscribe = onSnapshot(
         q,
         (snapshot) => {
+          console.log("📦 Snapshot received:", snapshot.docs.length, "chats");
+
           const chatData = snapshot.docs.map((doc) => ({
             id: doc.id,
             ...doc.data(),
           }));
+
+          // Sort manually by updatedAt (most recent first)
+          chatData.sort((a, b) => {
+            const timeA =
+              a.updatedAt?.toMillis?.() || a.updatedAt?.getTime?.() || 0;
+            const timeB =
+              b.updatedAt?.toMillis?.() || b.updatedAt?.getTime?.() || 0;
+            return timeB - timeA;
+          });
+
           console.log("📋 Chats updated:", chatData.length);
           setChats(chatData);
           setLoading(false);
         },
         (error) => {
-          console.error("Error fetching chats:", error);
-          console.warn(
-            "Firestore may not be enabled. Please enable it in Firebase Console."
-          );
+          console.error("❌ Error fetching chats:", error);
+          console.error("Error code:", error.code);
+          console.error("Error message:", error.message);
           setLoading(false);
         }
       );
 
       // Cleanup subscription on unmount
-      return () => unsubscribe();
+      return () => {
+        console.log("🧹 Cleaning up chat listener");
+        unsubscribe();
+      };
     } catch (error) {
-      console.error("Firestore initialization error:", error);
+      console.error("❌ Firestore initialization error:", error);
       setLoading(false);
     }
   }, [user]);
@@ -137,35 +155,42 @@ export default function ChatHistory({
     const isHovered = chat.id === hoveredChatId;
 
     return (
-      <button
+      <div
         key={chat.id}
-        onClick={() => onChatSelect(chat.id)}
         onMouseEnter={() => setHoveredChatId(chat.id)}
         onMouseLeave={() => setHoveredChatId(null)}
-        className={`w-full text-left px-3 py-2.5 rounded-lg transition-all group relative ${
-          isActive
-            ? "bg-gradient-to-r from-teal-600/20 to-teal-500/20 border border-teal-500/30 text-teal-100"
-            : "text-gray-300 hover:bg-teal-900/20 hover:text-white"
-        }`}
+        className="relative"
       >
-        <div className="flex items-center gap-2 pr-8">
-          <MessageSquare className="w-4 h-4 flex-shrink-0" />
-          <span className="text-sm truncate flex-1">
-            {chat.title || "Untitled Chat"}
-          </span>
-        </div>
+        <button
+          onClick={() => onChatSelect(chat.id)}
+          className={`w-full text-left px-3 py-2.5 rounded-lg transition-all group ${
+            isActive
+              ? "bg-gradient-to-r from-teal-600/20 to-teal-500/20 border border-teal-500/30 text-teal-100"
+              : "text-gray-300 hover:bg-teal-900/20 hover:text-white"
+          }`}
+        >
+          <div className="flex items-center gap-2 pr-8">
+            <MessageSquare className="w-4 h-4 flex-shrink-0" />
+            <span className="text-sm truncate flex-1">
+              {chat.title || "Untitled Chat"}
+            </span>
+          </div>
+        </button>
 
-        {/* Delete button - shows on hover */}
+        {/* Delete button - positioned outside the main button */}
         {isHovered && (
           <button
-            onClick={(e) => handleDeleteChat(e, chat.id)}
-            className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-md hover:bg-red-500/20 transition-colors"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleDeleteChat(e, chat.id);
+            }}
+            className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-md hover:bg-red-500/20 transition-colors z-10"
             title="Delete conversation"
           >
             <Trash2 className="w-4 h-4 text-gray-400 hover:text-red-400" />
           </button>
         )}
-      </button>
+      </div>
     );
   };
 

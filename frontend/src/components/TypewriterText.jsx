@@ -38,9 +38,9 @@ export default function TypewriterText({
         components={{
           code: CodeBlock,
           p: ({ children }) => (
-            <p className="mb-3 last:mb-0 text-gray-100 leading-relaxed">
+            <div className="mb-3 last:mb-0 text-gray-100 leading-relaxed">
               {children}
-            </p>
+            </div>
           ),
           h1: ({ children }) => (
             <h1 className="text-2xl font-bold mb-3 mt-4 first:mt-0">

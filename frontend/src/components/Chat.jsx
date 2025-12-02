@@ -7,6 +7,7 @@ import {
   updateDoc,
   doc,
   getDoc,
+  setDoc,
   serverTimestamp,
 } from "firebase/firestore";
 import axios from "axios";
@@ -81,6 +82,29 @@ export default function Chat({
     }
   };
 
+  // Helper function to save messages to existing chat
+  const saveMessagesToChat = async (chatId, userMessage, aiMessage) => {
+    try {
+      // Fetch current messages to avoid stale state
+      const chatDoc = await getDoc(doc(db, "chats", chatId));
+      const currentMessages = chatDoc.exists()
+        ? chatDoc.data().messages || []
+        : [];
+
+      // Append new messages
+      const updatedMessages = [...currentMessages, userMessage, aiMessage];
+
+      await updateDoc(doc(db, "chats", chatId), {
+        messages: updatedMessages,
+        updatedAt: new Date(),
+      });
+
+      console.log(`💾 Saved messages to chat: ${chatId}`);
+    } catch (error) {
+      console.error("❌ Error saving messages:", error);
+    }
+  };
+
   const saveOrUpdateChat = async (
     userMessage,
     aiMessage,
@@ -93,7 +117,7 @@ export default function Chat({
         // Update existing chat
         await updateDoc(doc(db, "chats", currentChatId), {
           messages: newMessages,
-          updatedAt: serverTimestamp(),
+          updatedAt: new Date(),
         });
       } else {
         // Create new chat with temporary title
@@ -102,8 +126,8 @@ export default function Chat({
           userId: user.uid,
           title: tempTitle,
           messages: newMessages,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
+          createdAt: new Date(),
+          updatedAt: new Date(),
         });
         setCurrentChatId(chatRef.id);
 
@@ -143,7 +167,7 @@ export default function Chat({
         // Update Firestore with new title
         await updateDoc(doc(db, "chats", chatId), {
           title: newTitle,
-          updatedAt: serverTimestamp(),
+          updatedAt: new Date(),
         });
 
         console.log(`✅ Chat renamed to: "${newTitle}"`);
@@ -157,7 +181,7 @@ export default function Chat({
 
   const handleSend = async (e) => {
     e.preventDefault();
-    e.stopPropagation(); // Prevent event bubbling
+    e.stopPropagation();
 
     // Guard: prevent multiple simultaneous submissions
     if (!input.trim() || loading) {
@@ -165,26 +189,91 @@ export default function Chat({
       return;
     }
 
+    const messageToSend = input.trim();
+
     const userMessage = {
       id: Date.now(),
       role: "user",
-      content: input.trim(),
+      content: messageToSend,
       timestamp: new Date().toISOString(),
     };
 
     // Clear input and set loading IMMEDIATELY
-    const messageToSend = input.trim();
-    const isNewChat = messages.length === 0 && !currentChatId;
     setInput("");
     setMessages((prev) => [...prev, userMessage]);
     setLoading(true);
-    console.log("Message sent, loading started", { isNewChat });
 
     try {
-      // Get Firebase ID token
-      const idToken = await user.getIdToken();
+      // CRITICAL: Check currentChatId ONLY (not messages.length)
+      let chatId = currentChatId;
 
-      // Send to backend
+      if (!chatId) {
+        // This is a NEW chat - create it FIRST
+        console.log(
+          "🆕 Creating new chat with title:",
+          messageToSend.substring(0, 50)
+        );
+
+        try {
+          console.log("📝 Creating new chat document...");
+
+          // Generate a unique ID manually
+          const newChatId = `chat_${Date.now()}_${Math.random()
+            .toString(36)
+            .substr(2, 9)}`;
+          chatId = newChatId;
+          setCurrentChatId(newChatId);
+
+          console.log("💾 Saving to Firestore (background):", {
+            docId: newChatId,
+            userId: user.uid,
+            title:
+              messageToSend.length > 50
+                ? messageToSend.substring(0, 50) + "..."
+                : messageToSend,
+          });
+
+          // Save to Firestore - don't wait for Promise, it will sync eventually
+          setDoc(doc(db, "chats", newChatId), {
+            userId: user.uid,
+            title:
+              messageToSend.length > 50
+                ? messageToSend.substring(0, 50) + "..."
+                : messageToSend,
+            messages: [],
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          }); // No .then() or .catch() - just fire and forget
+
+          console.log("📤 Chat save initiated (will sync in background)");
+
+          console.log("✅ New chat created with ID:", chatId);
+        } catch (firestoreError) {
+          console.error("❌ Firestore addDoc failed:", firestoreError);
+          throw new Error("Failed to create chat: " + firestoreError.message);
+        }
+
+        // Generate better title in background (don't await, use setTimeout to ensure non-blocking)
+        setTimeout(() => {
+          generateAndUpdateTitle(chatId, messageToSend).catch((err) => {
+            console.warn(
+              "⚠️ Title generation failed (non-critical):",
+              err.message
+            );
+          });
+        }, 0);
+
+        console.log("📝 Title generation queued, continuing...");
+      } else {
+        console.log("💬 Using existing chat:", chatId);
+      }
+
+      console.log("🔑 Getting Firebase token...");
+      // Get Firebase ID token and send to AI
+      const idToken = await user.getIdToken();
+      console.log("✅ Token obtained");
+
+      console.log("🤖 Calling AI API at:", API_URL);
       const response = await axios.post(
         `${API_URL}/api/chat`,
         { message: messageToSend },
@@ -193,44 +282,56 @@ export default function Chat({
             Authorization: `Bearer ${idToken}`,
             "Content-Type": "application/json",
           },
+          timeout: 30000, // 30 second timeout
         }
       );
 
-      console.log("Response received:", response.data.success);
+      console.log("✅ AI API responded with status:", response.status);
+      console.log("📦 Response data:", response.data);
 
-      if (response.data.success) {
+      if (response.data && response.data.success) {
         const aiMessage = {
           id: Date.now() + 1,
           role: "assistant",
-          content: response.data.response, // ReactMarkdown will handle formatting
+          content: response.data.response,
           timestamp: new Date().toISOString(),
         };
+
+        console.log("💬 Adding AI message to UI...");
         setMessages((prev) => [...prev, aiMessage]);
 
-        // Save to Firestore (don't await - let it happen in background)
-        saveOrUpdateChat(userMessage, aiMessage, isNewChat).catch((err) =>
-          console.error("Error saving to Firestore:", err)
-        );
+        // Save both messages to Firestore - DON'T AWAIT (non-blocking)
+        console.log("💾 Saving to Firestore (background)...");
+        saveMessagesToChat(chatId, userMessage, aiMessage)
+          .then(() => console.log("✅ Messages saved!"))
+          .catch((err) => console.warn("⚠️ Save failed (non-critical):", err));
+
+        console.log("✅ All done!");
       } else {
-        throw new Error(response.data.message || "Failed to get response");
+        console.error("❌ AI response unsuccessful:", response.data);
+        throw new Error(
+          response.data?.message || "AI returned unsuccessful response"
+        );
       }
     } catch (error) {
-      console.error("Chat error:", error);
+      console.error("❌ Error in handleSend:", error);
+      console.error("Error response data:", error.response?.data);
+      console.error("Error stack:", error.stack);
+
       const errorMessage = {
         id: Date.now() + 1,
         role: "assistant",
         content: `Error: ${
           error.response?.data?.message ||
           error.message ||
-          "Failed to send message"
+          "Failed to get AI response. Please try again."
         }`,
         timestamp: new Date().toISOString(),
         isError: true,
       };
       setMessages((prev) => [...prev, errorMessage]);
     } finally {
-      // Ensure loading is always set to false
-      console.log("Setting loading to false");
+      console.log("🏁 Setting loading to false");
       setLoading(false);
     }
   };
