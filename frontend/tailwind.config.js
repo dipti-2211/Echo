@@ -18,6 +18,9 @@ export default {
                 'fade-in': 'fadeIn 0.5s ease-in-out',
                 'slide-up': 'slideUp 0.3s ease-out',
                 'gradient': 'gradient 15s ease infinite',
+                'bounce-dot': 'bounceDot 1.4s ease-in-out infinite',
+                'fadeIn': 'fadeIn 0.3s ease-in',
+                'scaleIn': 'scaleIn 0.2s ease-out',
             },
             keyframes: {
                 fadeIn: {
@@ -31,6 +34,26 @@ export default {
                 gradient: {
                     '0%, 100%': { backgroundPosition: '0% 50%' },
                     '50%': { backgroundPosition: '100% 50%' },
+                },
+                bounceDot: {
+                    '0%, 80%, 100%': {
+                        transform: 'scale(0)',
+                        opacity: '0.5',
+                    },
+                    '40%': {
+                        transform: 'scale(1)',
+                        opacity: '1',
+                    },
+                },
+                scaleIn: {
+                    '0%': {
+                        opacity: '0',
+                        transform: 'scale(0.95) translateY(-10px)',
+                    },
+                    '100%': {
+                        opacity: '1',
+                        transform: 'scale(1) translateY(0)',
+                    },
                 },
             },
             fontFamily: {

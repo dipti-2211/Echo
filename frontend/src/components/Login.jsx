@@ -9,7 +9,16 @@ import {
   signInAnonymously,
 } from "firebase/auth";
 import { auth } from "../firebaseConfig";
-import { LogIn, Mail, Phone, ArrowLeft, UserX } from "lucide-react";
+import {
+  LogIn,
+  Mail,
+  Phone,
+  ArrowLeft,
+  UserX,
+  Eye,
+  EyeOff,
+} from "lucide-react";
+import ResetPasswordModal from "./ResetPasswordModal";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -17,6 +26,8 @@ export default function Login() {
   const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showResetModal, setShowResetModal] = useState(false);
 
   // Phone auth states
   const [authMode, setAuthMode] = useState("default"); // "default" | "phone" | "otp"
@@ -91,8 +102,11 @@ export default function Login() {
         setError("Invalid email address.");
       } else if (err.code === "auth/user-not-found") {
         setError("No account found with this email. Please sign up first.");
-      } else if (err.code === "auth/wrong-password") {
-        setError("Incorrect password.");
+      } else if (
+        err.code === "auth/wrong-password" ||
+        err.code === "auth/invalid-credential"
+      ) {
+        setError("Wrong password. Please try again.");
       } else {
         setError(err.message);
       }
@@ -278,16 +292,43 @@ export default function Login() {
                   <label className="block text-sm text-mutedGrey mb-2">
                     Password
                   </label>
-                  <input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    required
-                    disabled={loading}
-                    className="w-full px-4 py-3 bg-darkZinc border border-subtleGrey rounded-xl text-primaryWhite placeholder-mutedGrey focus:outline-none focus:ring-2 focus:ring-primaryWhite/20 transition-all disabled:opacity-50"
-                  />
+                  <div className="relative">
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="••••••••"
+                      required
+                      disabled={loading}
+                      className="w-full px-4 pr-11 py-3 bg-darkZinc border border-subtleGrey rounded-xl text-primaryWhite placeholder-mutedGrey focus:outline-none focus:ring-2 focus:ring-primaryWhite/20 transition-all disabled:opacity-50"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-mutedGrey hover:text-primaryWhite transition-colors"
+                      tabIndex={-1}
+                    >
+                      {showPassword ? (
+                        <EyeOff className="w-5 h-5" />
+                      ) : (
+                        <Eye className="w-5 h-5" />
+                      )}
+                    </button>
+                  </div>
                 </div>
+
+                {/* Forgot Password Link - Only show on Sign In */}
+                {!isSignUp && (
+                  <div className="text-right">
+                    <button
+                      type="button"
+                      onClick={() => setShowResetModal(true)}
+                      className="text-sm text-teal-400 hover:text-teal-300 transition-colors"
+                    >
+                      Forgot Password?
+                    </button>
+                  </div>
+                )}
 
                 <button
                   type="submit"
@@ -456,6 +497,12 @@ export default function Login() {
           By signing in, you agree to our Terms and Privacy Policy
         </p>
       </div>
+
+      {/* Reset Password Modal */}
+      <ResetPasswordModal
+        isOpen={showResetModal}
+        onClose={() => setShowResetModal(false)}
+      />
     </div>
   );
 }

@@ -24,6 +24,8 @@ import {
 import CodeBlock from "./CodeBlock";
 import TextareaAutosize from "react-textarea-autosize";
 import TypewriterText from "./TypewriterText";
+import ThinkingIndicator from "./ThinkingIndicator";
+import PersonaSelector, { PERSONAS } from "./PersonaSelector";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5001";
 
@@ -38,8 +40,12 @@ export default function Chat({
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [currentChatId, setCurrentChatId] = useState(activeChatId);
+  const [selectedPersona, setSelectedPersona] = useState("default");
+  const [showPersonaDropdown, setShowPersonaDropdown] = useState(false);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
+  const abortControllerRef = useRef(null);
+  const personaTriggerRef = useRef(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -100,6 +106,15 @@ export default function Chat({
       }, 100);
     }
   }, [activeChatId]);
+
+  // Cleanup: abort any ongoing requests when component unmounts
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
 
   const loadChat = async (chatId) => {
     try {
@@ -211,6 +226,16 @@ export default function Chat({
     }
   };
 
+  const stopGeneration = () => {
+    if (abortControllerRef.current) {
+      console.log("🛑 Stopping generation...");
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+      setLoading(false);
+      console.log("✅ Generation stopped");
+    }
+  };
+
   const handleSend = async (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -305,18 +330,30 @@ export default function Chat({
       const idToken = await user.getIdToken();
       console.log("✅ Token obtained");
 
+      // Create AbortController for this request
+      abortControllerRef.current = new AbortController();
+
       console.log("🤖 Calling AI API at:", API_URL);
+      console.log("🎭 Using persona:", selectedPersona);
+
       const response = await axios.post(
         `${API_URL}/api/chat`,
-        { message: messageToSend },
+        {
+          message: messageToSend,
+          systemInstruction: PERSONAS[selectedPersona]?.prompt, // Add persona prompt
+        },
         {
           headers: {
             Authorization: `Bearer ${idToken}`,
             "Content-Type": "application/json",
           },
           timeout: 30000, // 30 second timeout
+          signal: abortControllerRef.current.signal, // Add abort signal
         }
       );
+
+      // Clear abort controller after successful response
+      abortControllerRef.current = null;
 
       console.log("✅ AI API responded with status:", response.status);
       console.log("📦 Response data:", response.data);
@@ -346,6 +383,13 @@ export default function Chat({
         );
       }
     } catch (error) {
+      // Check if request was aborted by user
+      if (error.code === "ERR_CANCELED" || error.name === "CanceledError") {
+        console.log("🛑 Request cancelled by user");
+        // Don't show error message for user-cancelled requests
+        return;
+      }
+
       console.error("❌ Error in handleSend:", error);
       console.error("Error response data:", error.response?.data);
       console.error("Error stack:", error.stack);
@@ -412,14 +456,26 @@ export default function Chat({
           </div>
         </div>
 
-        {/* Mobile New Chat Button - Only visible on small screens */}
-        <button
-          onClick={onNewChat}
-          className="md:hidden p-2 rounded-lg bg-teal-600/20 hover:bg-teal-600/30 transition-colors"
-          title="New Chat"
-        >
-          <Edit3 className="w-5 h-5 text-teal-400" />
-        </button>
+        {/* Persona Selector Trigger (Pencil Icon) */}
+        <div className="relative">
+          <button
+            ref={personaTriggerRef}
+            onClick={() => setShowPersonaDropdown(!showPersonaDropdown)}
+            className="p-2 rounded-lg bg-teal-600/20 hover:bg-teal-600/30 transition-colors relative"
+            title="Change AI Mode"
+          >
+            <Edit3 className="w-5 h-5 text-teal-400" />
+          </button>
+
+          {/* Persona Dropdown Menu */}
+          <PersonaSelector
+            selectedPersona={selectedPersona}
+            onPersonaChange={setSelectedPersona}
+            isOpen={showPersonaDropdown}
+            onClose={() => setShowPersonaDropdown(false)}
+            triggerRef={personaTriggerRef}
+          />
+        </div>
       </header>
 
       {/* Messages Area */}
@@ -492,18 +548,11 @@ export default function Chat({
               </div>
             ))}
 
-            {/* Typing Indicator */}
+            {/* Thinking Indicator - Modern bouncing dots animation */}
             {loading && (
               <div className="w-full py-8">
-                <div className="max-w-3xl mx-auto px-4 flex gap-4">
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-teal-600 to-teal-700 flex items-center justify-center flex-shrink-0 shadow-md shadow-teal-500/30">
-                    <Bot className="w-5 h-5 text-white" />
-                  </div>
-                  <div className="flex gap-1 items-center">
-                    <div className="w-2 h-2 rounded-full bg-teal-400 typing-dot"></div>
-                    <div className="w-2 h-2 rounded-full bg-teal-400 typing-dot"></div>
-                    <div className="w-2 h-2 rounded-full bg-teal-400 typing-dot"></div>
-                  </div>
+                <div className="max-w-3xl mx-auto px-4">
+                  <ThinkingIndicator />
                 </div>
               </div>
             )}
@@ -547,19 +596,38 @@ export default function Chat({
                   className="flex-1 bg-transparent text-white placeholder-gray-500 resize-none outline-none py-2 disabled:opacity-50 max-h-[200px] overflow-y-auto custom-scroll"
                 />
 
-                {/* Send Button */}
-                <button
-                  type="submit"
-                  disabled={!input.trim() || loading}
-                  className={`flex-shrink-0 p-2 rounded-lg transition-all ${
-                    input.trim() && !loading
-                      ? "bg-white text-black hover:bg-gray-200"
-                      : "bg-gray-700 text-gray-500 cursor-not-allowed"
-                  }`}
-                  title="Send message"
-                >
-                  <Send className="w-5 h-5" />
-                </button>
+                {/* Send/Stop Button */}
+                {loading ? (
+                  /* Stop Generation Button */
+                  <button
+                    type="button"
+                    onClick={stopGeneration}
+                    className="flex-shrink-0 p-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-all"
+                    title="Stop generating"
+                  >
+                    <svg
+                      className="w-5 h-5"
+                      fill="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <rect x="6" y="6" width="12" height="12" rx="2" />
+                    </svg>
+                  </button>
+                ) : (
+                  /* Send Button */
+                  <button
+                    type="submit"
+                    disabled={!input.trim()}
+                    className={`flex-shrink-0 p-2 rounded-lg transition-all ${
+                      input.trim()
+                        ? "bg-white text-black hover:bg-gray-200"
+                        : "bg-gray-700 text-gray-500 cursor-not-allowed"
+                    }`}
+                    title="Send message"
+                  >
+                    <Send className="w-5 h-5" />
+                  </button>
+                )}
               </div>
             </div>
           </form>

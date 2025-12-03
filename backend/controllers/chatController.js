@@ -116,7 +116,7 @@ export const getConversation = async (req, res) => {
  */
 export const sendMessage = async (req, res) => {
     try {
-        const { userId, message, conversationId } = req.body;
+        const { userId, message, conversationId, systemInstruction } = req.body;
 
         // Validate required fields
         if (!userId || !message) {
@@ -243,65 +243,65 @@ export const sendMessage = async (req, res) => {
                     messages: [
                         {
                             role: 'system',
-                            content:
-                                'You are a helpful AI assistant. Provide clear, concise, and accurate responses.',
+                            content: systemInstruction || 'You are a helpful AI assistant. Provide clear, concise, and accurate responses.',
                         },
-                        ...messages,
+                        },
+                    ...messages,
                     ],
-                    max_tokens: parseInt(process.env.OPENAI_MAX_TOKENS) || 1000,
-                    temperature: parseFloat(process.env.OPENAI_TEMPERATURE) || 0.7,
+max_tokens: parseInt(process.env.OPENAI_MAX_TOKENS) || 1000,
+    temperature: parseFloat(process.env.OPENAI_TEMPERATURE) || 0.7,
                 });
 
-                aiResponse = completion.choices[0].message.content;
+aiResponse = completion.choices[0].message.content;
             } catch (openaiError) {
-                console.error('OpenAI API error:', openaiError);
+    console.error('OpenAI API error:', openaiError);
 
-                // Save user message even if OpenAI fails (only for MongoDB)
-                if (isMongoConnected) {
-                    await conversation.save();
-                }
-
-                return res.status(500).json({
-                    success: false,
-                    message: 'Error generating AI response',
-                    error: process.env.NODE_ENV === 'development' ? openaiError.message : undefined,
-                    conversationId: conversation._id,
-                });
-            }
-        }
-
-        // Add AI response to conversation
-        if (isMongoConnected) {
-            await conversation.addMessage('ai', aiResponse);
-        } else {
-            // In-memory storage
-            conversation.messages.push({
-                sender: 'ai',
-                text: aiResponse,
-                timestamp: new Date(),
-            });
-            conversation.lastActivity = new Date();
-        }
-
-        res.status(200).json({
-            success: true,
-            message: 'Message sent successfully',
-            conversationId: conversation._id,
-            response: aiResponse,
-            conversation: {
-                id: conversation._id,
-                title: conversation.title,
-                messageCount: conversation.messages.length,
-            },
-        });
-    } catch (error) {
-        console.error('Send message error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Error processing message',
-            error: process.env.NODE_ENV === 'development' ? error.message : undefined,
-        });
+    // Save user message even if OpenAI fails (only for MongoDB)
+    if (isMongoConnected) {
+        await conversation.save();
     }
+
+    return res.status(500).json({
+        success: false,
+        message: 'Error generating AI response',
+        error: process.env.NODE_ENV === 'development' ? openaiError.message : undefined,
+        conversationId: conversation._id,
+    });
+}
+        }
+
+// Add AI response to conversation
+if (isMongoConnected) {
+    await conversation.addMessage('ai', aiResponse);
+} else {
+    // In-memory storage
+    conversation.messages.push({
+        sender: 'ai',
+        text: aiResponse,
+        timestamp: new Date(),
+    });
+    conversation.lastActivity = new Date();
+}
+
+res.status(200).json({
+    success: true,
+    message: 'Message sent successfully',
+    conversationId: conversation._id,
+    response: aiResponse,
+    conversation: {
+        id: conversation._id,
+        title: conversation.title,
+        messageCount: conversation.messages.length,
+    },
+});
+    } catch (error) {
+    console.error('Send message error:', error);
+    res.status(500).json({
+        success: false,
+        message: 'Error processing message',
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+    });
+}
 };
 
 /**

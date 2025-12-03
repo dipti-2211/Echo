@@ -11,6 +11,7 @@ import {
 import { db, auth } from "../firebaseConfig";
 import { signOut } from "firebase/auth";
 import { Trash2, MessageSquare, Plus, LogOut, Ellipsis, X } from "lucide-react";
+import LogoutModal from "./LogoutModal";
 import {
   isToday,
   isYesterday,
@@ -74,6 +75,7 @@ export default function ChatHistory({
   const [chats, setChats] = useState([]);
   const [loading, setLoading] = useState(true);
   const [hoveredChatId, setHoveredChatId] = useState(null);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   useEffect(() => {
     if (!user) {
@@ -210,18 +212,29 @@ export default function ChatHistory({
   const groupedChats = groupChatsByDate(chats);
 
   const handleSignOut = async () => {
-    if (window.confirm("Are you sure you want to sign out?")) {
-      try {
-        await signOut(auth);
-      } catch (error) {
-        console.error("Sign out error:", error);
-      }
+    try {
+      await signOut(auth);
+      setShowLogoutModal(false);
+    } catch (error) {
+      console.error("Sign out error:", error);
     }
   };
 
+  const handleLogoutClick = () => {
+    setShowLogoutModal(true);
+  };
+
   return (
-    <div
-      className={`
+    <>
+      {/* Logout Confirmation Modal */}
+      <LogoutModal
+        isOpen={showLogoutModal}
+        onConfirm={handleSignOut}
+        onCancel={() => setShowLogoutModal(false)}
+      />
+
+      <div
+        className={`
         fixed md:relative inset-y-0 left-0 z-50 
         w-[260px] h-screen bg-[#171717] text-white flex flex-col
         transform transition-transform duration-300 ease-in-out
@@ -230,87 +243,88 @@ export default function ChatHistory({
         }
         ${!isSidebarOpen ? "md:w-0 md:hidden" : ""}
       `}
-    >
-      {/* Header with New Chat Button and Close Button */}
-      <div className="p-3 border-b border-gray-800 sticky top-0 bg-[#171717] z-10">
-        <div className="flex items-center justify-between mb-3 md:hidden">
-          <h2 className="text-lg font-semibold">Conversations</h2>
+      >
+        {/* Header with New Chat Button and Close Button */}
+        <div className="p-3 border-b border-gray-800 sticky top-0 bg-[#171717] z-10">
+          <div className="flex items-center justify-between mb-3 md:hidden">
+            <h2 className="text-lg font-semibold">Conversations</h2>
+            <button
+              onClick={toggleSidebar}
+              className="p-2 hover:bg-gray-800 rounded-lg transition-colors"
+              title="Close sidebar"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* Desktop Close Button */}
+          <div className="hidden md:flex items-center justify-between mb-3">
+            <h2 className="text-sm font-semibold text-gray-400">Chats</h2>
+            <button
+              onClick={toggleSidebar}
+              className="p-1.5 hover:bg-gray-800 rounded-lg transition-colors"
+              title="Close sidebar"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
           <button
-            onClick={toggleSidebar}
-            className="p-2 hover:bg-gray-800 rounded-lg transition-colors"
-            title="Close sidebar"
+            onClick={onNewChat}
+            className="w-full flex items-center justify-center gap-3 px-4 py-3 bg-[#262626] hover:bg-[#303030] rounded-lg border border-white/10 transition-all duration-200 group"
+            title="Start a new conversation"
           >
-            <X className="w-5 h-5" />
+            <Plus className="w-5 h-5 text-white/80 group-hover:text-white" />
+            <span className="text-sm font-medium text-white/90 group-hover:text-white">
+              New Chat
+            </span>
           </button>
         </div>
 
-        {/* Desktop Close Button */}
-        <div className="hidden md:flex items-center justify-between mb-3">
-          <h2 className="text-sm font-semibold text-gray-400">Chats</h2>
-          <button
-            onClick={toggleSidebar}
-            className="p-1.5 hover:bg-gray-800 rounded-lg transition-colors"
-            title="Close sidebar"
-          >
-            <X className="w-4 h-4" />
-          </button>
+        {/* Chat History */}
+        <div className="flex-1 overflow-y-auto px-2 py-3 custom-scroll">
+          {loading ? (
+            <div className="text-center py-8">
+              <div className="inline-block animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-gray-400"></div>
+              <p className="text-sm text-gray-500 mt-2">Loading chats...</p>
+            </div>
+          ) : chats.length === 0 ? (
+            <div className="text-center py-8 px-4">
+              <MessageSquare className="w-8 h-8 text-gray-600 mx-auto mb-2" />
+              <p className="text-sm text-gray-500">No conversations yet</p>
+              <p className="text-xs text-gray-600 mt-1">
+                Start a new chat to begin
+              </p>
+            </div>
+          ) : (
+            <>
+              {renderGroup("Today", groupedChats.today)}
+              {renderGroup("Yesterday", groupedChats.yesterday)}
+              {renderGroup("Previous 7 Days", groupedChats.previous7Days)}
+              {renderGroup("Previous 30 Days", groupedChats.previous30Days)}
+              {renderGroup("Older", groupedChats.older)}
+            </>
+          )}
         </div>
 
-        <button
-          onClick={onNewChat}
-          className="w-full flex items-center justify-center gap-3 px-4 py-3 bg-[#262626] hover:bg-[#303030] rounded-lg border border-white/10 transition-all duration-200 group"
-          title="Start a new conversation"
-        >
-          <Plus className="w-5 h-5 text-white/80 group-hover:text-white" />
-          <span className="text-sm font-medium text-white/90 group-hover:text-white">
-            New Chat
-          </span>
-        </button>
+        {/* Footer - User info with logout button */}
+        <div className="p-3 border-t border-gray-800">
+          <button
+            onClick={handleLogoutClick}
+            className="w-full flex items-center gap-3 px-3 py-2 text-sm text-gray-300 hover:bg-teal-900/20 rounded-lg transition-colors group"
+          >
+            <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center text-white font-semibold flex-shrink-0">
+              {user?.email?.charAt(0).toUpperCase() || "U"}
+            </div>
+            <div className="flex-1 text-left truncate">
+              <p className="text-xs text-white truncate font-medium">
+                {user?.displayName || user?.email}
+              </p>
+            </div>
+            <LogOut className="w-4 h-4 text-gray-500 group-hover:text-gray-300" />
+          </button>
+        </div>
       </div>
-
-      {/* Chat History */}
-      <div className="flex-1 overflow-y-auto px-2 py-3 custom-scroll">
-        {loading ? (
-          <div className="text-center py-8">
-            <div className="inline-block animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-gray-400"></div>
-            <p className="text-sm text-gray-500 mt-2">Loading chats...</p>
-          </div>
-        ) : chats.length === 0 ? (
-          <div className="text-center py-8 px-4">
-            <MessageSquare className="w-8 h-8 text-gray-600 mx-auto mb-2" />
-            <p className="text-sm text-gray-500">No conversations yet</p>
-            <p className="text-xs text-gray-600 mt-1">
-              Start a new chat to begin
-            </p>
-          </div>
-        ) : (
-          <>
-            {renderGroup("Today", groupedChats.today)}
-            {renderGroup("Yesterday", groupedChats.yesterday)}
-            {renderGroup("Previous 7 Days", groupedChats.previous7Days)}
-            {renderGroup("Previous 30 Days", groupedChats.previous30Days)}
-            {renderGroup("Older", groupedChats.older)}
-          </>
-        )}
-      </div>
-
-      {/* Footer - User info with logout button */}
-      <div className="p-3 border-t border-gray-800">
-        <button
-          onClick={handleSignOut}
-          className="w-full flex items-center gap-3 px-3 py-2 text-sm text-gray-300 hover:bg-teal-900/20 rounded-lg transition-colors group"
-        >
-          <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center text-white font-semibold flex-shrink-0">
-            {user?.email?.charAt(0).toUpperCase() || "U"}
-          </div>
-          <div className="flex-1 text-left truncate">
-            <p className="text-xs text-white truncate font-medium">
-              {user?.displayName || user?.email}
-            </p>
-          </div>
-          <LogOut className="w-4 h-4 text-gray-500 group-hover:text-gray-300" />
-        </button>
-      </div>
-    </div>
+    </>
   );
 }
