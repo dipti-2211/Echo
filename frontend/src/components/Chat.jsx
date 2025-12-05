@@ -19,6 +19,7 @@ import {
   Edit3,
   Menu,
   PanelLeftOpen,
+  Plus,
   Paperclip,
 } from "lucide-react";
 import CodeBlock from "./CodeBlock";
@@ -357,6 +358,7 @@ export default function Chat({
 
       console.log("✅ AI API responded with status:", response.status);
       console.log("📦 Response data:", response.data);
+      console.log("📊 Current messages count:", messages.length);
 
       if (response.data && response.data.success) {
         const aiMessage = {
@@ -520,8 +522,9 @@ export default function Chat({
                     </div>
                   ) : (
                     <div className="w-8 h-8 rounded-full bg-primaryWhite text-richBlack flex items-center justify-center flex-shrink-0 font-semibold text-sm">
-                      {user.displayName?.charAt(0) ||
-                        user.email.charAt(0).toUpperCase()}
+                      {user?.displayName?.charAt(0) ||
+                        user?.email?.charAt(0)?.toUpperCase() ||
+                        "U"}
                     </div>
                   )}
 
@@ -569,13 +572,14 @@ export default function Chat({
             {/* Input Container */}
             <div className="bg-[#2f2f2f] rounded-[26px] shadow-xl border border-white/10 overflow-hidden">
               <div className="flex items-end gap-2 p-3">
-                {/* Attach Button */}
+                {/* Paperclip Icon Button - No Function */}
                 <button
                   type="button"
-                  className="flex-shrink-0 p-2 text-gray-400 hover:text-gray-300 hover:bg-white/5 rounded-lg transition-colors"
-                  title="Attach file"
+                  disabled
+                  className="flex-shrink-0 p-2.5 text-gray-400 opacity-50 cursor-not-allowed"
+                  title="Attachments (Coming soon)"
                 >
-                  <Paperclip className="w-5 h-5" />
+                  <Paperclip className="w-6 h-6" />
                 </button>
 
                 {/* Auto-resize Textarea */}
@@ -602,7 +606,7 @@ export default function Chat({
                   <button
                     type="button"
                     onClick={stopGeneration}
-                    className="flex-shrink-0 p-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-all"
+                    className="flex-shrink-0 p-2 rounded-lg bg-gray-600 text-white hover:bg-gray-700 transition-all"
                     title="Stop generating"
                   >
                     <svg

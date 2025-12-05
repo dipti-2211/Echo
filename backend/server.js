@@ -12,10 +12,10 @@ const PORT = process.env.PORT || 5001;
 
 // Initialize Groq client
 let groqClient = null;
-if (process.env.GROQ_API_KEY) {
+if (process.env.OPENAI_API_KEY) {
     groqClient = new OpenAI({
-        apiKey: process.env.GROQ_API_KEY,
-        baseURL: 'https://api.groq.com/openai/v1'
+        apiKey: process.env.OPENAI_API_KEY,
+        baseURL: process.env.OPENAI_API_KEY.startsWith('gsk_') ? 'https://api.groq.com/openai/v1' : undefined
     });
     console.log('✅ Groq AI initialized');
 } else {
