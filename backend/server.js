@@ -1,6 +1,8 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 import { verifyToken } from './middleware/verifyToken.js';
 import OpenAI from 'openai';
 
@@ -22,8 +24,28 @@ if (process.env.OPENAI_API_KEY) {
     console.log('⚠️  No Groq API key found, using mock responses');
 }
 
+// Security: Helmet for security headers
+app.use(helmet());
+
+// Security: Rate limiting
+const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // limit each IP to 100 requests per 15 minutes
+    message: 'Too many requests from this IP, please try again later.',
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
+// Apply rate limiting to all API routes
+app.use('/api/', limiter);
+
 // Middleware
-const allowedOrigins = ['http://localhost:5173', 'http://localhost:5174'];
+const allowedOrigins = [
+    'http://localhost:5173', 
+    'http://localhost:5174',
+    process.env.FRONTEND_URL // For production
+].filter(Boolean);
+
 app.use(cors({
     origin: function (origin, callback) {
         // Allow requests with no origin (like mobile apps or curl)
