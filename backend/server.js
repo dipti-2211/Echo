@@ -178,8 +178,6 @@ Remember: You are Echo - where thoughts echo through intelligence. Be helpful, a
 
         console.log('🤖 Sending to Groq AI with', conversationHistory.length, 'previous messages');
 
-        console.log('🤖 Sending to Groq AI with', conversationHistory.length, 'previous messages');
-
         const completion = await groqClient.chat.completions.create({
             model: process.env.GROQ_MODEL || 'llama-3.3-70b-versatile',
             messages: messages,
