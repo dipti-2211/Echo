@@ -116,7 +116,7 @@ export const getConversation = async (req, res) => {
  */
 export const sendMessage = async (req, res) => {
     try {
-        const { userId, message, conversationId, systemInstruction } = req.body;
+        const { userId, message, conversationId, systemInstruction, conversationHistory } = req.body;
 
         // Validate required fields
         if (!userId || !message) {
@@ -130,7 +130,16 @@ export const sendMessage = async (req, res) => {
         let conversation;
         let messages = [];
 
-        if (isMongoConnected) {
+        // Use conversation history from request if provided, otherwise fetch from DB
+        if (conversationHistory && Array.isArray(conversationHistory) && conversationHistory.length > 0) {
+            console.log('📜 Using conversation history from request:', conversationHistory.length, 'messages');
+            // Add the current user message to the history
+            messages = [
+                ...conversationHistory,
+                { role: 'user', content: message }
+            ];
+            console.log('📜 Total messages (including current):', messages.length);
+        } else if (isMongoConnected) {
             // Use MongoDB
             // Verify user exists
             const user = await User.findById(userId);
@@ -238,12 +247,25 @@ export const sendMessage = async (req, res) => {
                 const defaultModel = isGroqKey ? 'llama-3.3-70b-versatile' : 'gpt-3.5-turbo';
                 const model = process.env.OPENAI_MODEL || defaultModel;
 
+                console.log('🤖 Sending to AI with', messages.length, 'messages in history');
+                console.log('📝 Messages:', JSON.stringify(messages, null, 2));
+
                 const completion = await openai.chat.completions.create({
                     model: model,
                     messages: [
                         {
                             role: 'system',
-                            content: systemInstruction || 'You are a helpful AI assistant. Provide clear, concise, and accurate responses.',
+                            content: systemInstruction || `You are "Echo," an intelligent AI assistant. Your tagline is "Where your thoughts echo through intelligence."
+
+ROLE & BEHAVIOR:
+- You have access to the previous conversation history in the messages array.
+- Use this history to maintain context, continuity, and avoid asking the user for information they have already provided.
+- If the user references "it," "that," or "the previous code," refer to the most relevant item in the conversation history.
+- If the topic changes significantly, acknowledge the shift but retain the previous context in case the user switches back.
+- Provide clear, accurate, and well-structured responses.
+- Be conversational yet professional.
+
+CRITICAL: Always check the conversation history before responding. If a user asks "What is my name?" or "What were we talking about?", review the previous messages to answer accurately.`,
                         },
                         ...messages,
                     ],

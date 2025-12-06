@@ -256,6 +256,9 @@ export default function Chat({
       timestamp: new Date().toISOString(),
     };
 
+    // Store current messages BEFORE updating state (React state is async)
+    const previousMessages = messages;
+
     // Clear input and set loading IMMEDIATELY
     setInput("");
     setMessages((prev) => [...prev, userMessage]);
@@ -336,11 +339,20 @@ export default function Chat({
 
       console.log("🤖 Calling AI API at:", API_URL);
       console.log("🎭 Using persona:", selectedPersona);
+      console.log(
+        "📜 Sending conversation history:",
+        previousMessages.length,
+        "messages (excluding current user message)"
+      );
 
       const response = await axios.post(
         `${API_URL}/api/chat`,
         {
           message: messageToSend,
+          conversationHistory: previousMessages.map((msg) => ({
+            role: msg.role,
+            content: msg.content,
+          })),
           systemInstruction: PERSONAS[selectedPersona]?.prompt, // Add persona prompt
         },
         {
@@ -635,11 +647,6 @@ export default function Chat({
               </div>
             </div>
           </form>
-
-          {/* Footer Disclaimer */}
-          <p className="text-xs text-gray-500 text-center mt-3">
-            Echo can make mistakes. Check important info.
-          </p>
         </div>
       </div>
     </div>

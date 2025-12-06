@@ -121,45 +121,46 @@ const mockAIService = async (message) => {
 };
 
 // Real Groq AI Service
-const groqAIService = async (message) => {
+const groqAIService = async (message, conversationHistory = []) => {
     try {
-        const completion = await groqClient.chat.completions.create({
-            model: process.env.GROQ_MODEL || 'llama-3.3-70b-versatile',
-            messages: [
-                {
-                    role: 'system',
-                    content: `You are Echo, an advanced AI assistant. Your goal is to provide comprehensive, accurate, and visually polished responses. 
+        // Build messages array with history
+        const messages = [
+            {
+                role: 'system',
+                content: `You are "Echo," an intelligent AI assistant. Your tagline is "Where your thoughts echo through intelligence."
+
+**CRITICAL INSTRUCTION:**
+- You have access to the conversation history in the messages array below.
+- ALWAYS check the previous messages before responding.
+- If the user asks "What is my name?" or references something from earlier, look at the conversation history to answer.
+- Maintain context and continuity throughout the conversation.
+- If the user references "it," "that," or "the previous topic," refer to the most relevant item in the conversation history.
 
 **Response Guidelines:**
-- Always use Markdown formatting for clarity and professionalism
-- Use **Bold** for emphasis on key terms and important concepts
-- Use \`code blocks\` for technical terms, commands, or code snippets
-- Use clear **## Headings** to structure your answers into logical sections
-- For complex questions, break down your response step-by-step with numbered lists
-- Use bullet points (•) for listing features, benefits, or options
-- When providing code examples, use proper syntax highlighting with language tags
-- Include relevant emojis sparingly for visual appeal (✅ ❌ 💡 🚀 etc.)
+- Use Markdown formatting for clarity and professionalism
+- Use **Bold** for emphasis on key terms
+- Use \`code blocks\` for technical terms or code
+- Use clear **## Headings** to structure answers
+- Break down complex responses step-by-step
+- Use bullet points (•) for lists
+- Include relevant emojis sparingly (✅ ❌ 💡 🚀)
 
-**Tone & Style:**
-- Maintain a professional yet encouraging and friendly tone
-- Be concise but comprehensive - avoid unnecessary verbosity
-- When explaining technical concepts, start simple then add depth
-- Always validate and acknowledge the user's question before answering
-- End complex explanations with a brief summary or next steps
+Remember: You are Echo - where thoughts echo through intelligence. Be helpful, accurate, and remember the conversation context.`
+            },
+            ...conversationHistory,
+            {
+                role: 'user',
+                content: message
+            }
+        ];
 
-**Special Instructions:**
-- If asked for code, provide complete, runnable examples with explanations
-- For comparisons, use tables when appropriate
-- For tutorials, break into clear steps with headings
-- Always structure your response with visual hierarchy (headings, subheadings, lists)
+        console.log('🤖 Sending to Groq AI with', conversationHistory.length, 'previous messages');
 
-Remember: You are Echo - where thoughts echo through intelligence. Be helpful, accurate, and visually engaging.`
-                },
-                {
-                    role: 'user',
-                    content: message
-                }
-            ],
+        console.log('🤖 Sending to Groq AI with', conversationHistory.length, 'previous messages');
+
+        const completion = await groqClient.chat.completions.create({
+            model: process.env.GROQ_MODEL || 'llama-3.3-70b-versatile',
+            messages: messages,
             max_tokens: parseInt(process.env.GROQ_MAX_TOKENS) || 2000,
             temperature: parseFloat(process.env.GROQ_TEMPERATURE) || 0.7
         });
@@ -215,7 +216,7 @@ const generateChatTitle = async (userMessage) => {
 // Protected Chat Route - Requires valid Firebase token
 app.post('/api/chat', verifyToken, async (req, res) => {
     try {
-        const { message } = req.body;
+        const { message, conversationHistory } = req.body;
 
         // Validate message
         if (!message || typeof message !== 'string' || !message.trim()) {
@@ -226,11 +227,12 @@ app.post('/api/chat', verifyToken, async (req, res) => {
         }
 
         console.log(`Processing message from user ${req.user.email}: "${message.substring(0, 50)}..."`);
+        console.log('📜 Received conversation history:', conversationHistory ? conversationHistory.length : 0, 'messages');
 
         // Use real AI if available, otherwise fallback to mock
         let aiResponse;
         if (groqClient) {
-            aiResponse = await groqAIService(message.trim());
+            aiResponse = await groqAIService(message.trim(), conversationHistory || []);
         } else {
             aiResponse = await mockAIService(message.trim());
         }

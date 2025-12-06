@@ -221,6 +221,11 @@ export default function ChatHistory({
   };
 
   const handleLogoutClick = () => {
+    // On mobile, close sidebar first so modal is clearly visible
+    if (window.innerWidth < 768 && isSidebarOpen) {
+      toggleSidebar();
+    }
+
     setShowLogoutModal(true);
   };
 
