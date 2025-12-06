@@ -16,12 +16,14 @@ An intelligent AI chatbot built with React, Firebase, and Groq AI, featuring con
 ## 🛠️ Tech Stack
 
 **Frontend:**
+
 - React + Vite
 - Tailwind CSS
 - Firebase Authentication
 - Axios for API calls
 
 **Backend:**
+
 - Node.js + Express
 - Groq AI API (LLaMA 3.3)
 - Firebase Admin SDK
@@ -106,10 +108,13 @@ cd backend
 npm install
 
 # Create .env file from example
+
 cp .env.example .env
 
 # Edit .env and add your Groq API key
+
 # Get your key from: https://console.groq.com/keys
+
 \`\`\`
 
 **Backend .env configuration:**
@@ -126,10 +131,13 @@ cd frontend
 npm install
 
 # Create .env file from example
+
 cp .env.example .env
 
 # Edit .env and add your Firebase config
+
 # Get from: Firebase Console > Project Settings
+
 \`\`\`
 
 **Frontend .env configuration:**
@@ -146,7 +154,9 @@ VITE_API_URL=http://localhost:5001
 \`\`\`bash
 cd backend
 npm run dev
+
 # or
+
 node server.js
 \`\`\`
 
@@ -193,6 +203,7 @@ Open http://localhost:5173 in your browser.
 ## 🔑 Getting API Keys
 
 ### Groq API Key (Free)
+
 1. Go to https://console.groq.com
 2. Sign up
 3. Navigate to API Keys
@@ -200,6 +211,7 @@ Open http://localhost:5173 in your browser.
 5. Copy and add to backend `.env`
 
 ### Firebase Config
+
 1. Go to https://console.firebase.google.com
 2. Create project (or use existing)
 3. Enable Authentication → Google Sign-in
@@ -217,20 +229,24 @@ Both backend and frontend have `.env.example` files showing required variables. 
 ## 🐛 Troubleshooting
 
 **Backend won't start:**
+
 - Check all environment variables are set
 - Verify Groq API key is valid
 - Check port 5001 is not in use
 
 **Frontend can't connect to backend:**
+
 - Verify `VITE_API_URL` in frontend `.env`
 - Check backend is running
 - Verify CORS settings in `backend/server.js`
 
 **Firebase auth errors:**
+
 - Verify all Firebase config values in frontend `.env`
 - Check Firebase authorized domains include your URL
 
 **Conversation memory not working:**
+
 - Check browser console for errors
 - Verify backend logs show "Sending to Groq AI with X previous messages"
 
@@ -250,6 +266,7 @@ MIT
 ## 👨‍💻 Author
 
 **Dipti**
+
 - GitHub: [@dipti-2211](https://github.com/dipti-2211)
 - Project: [Echo](https://github.com/dipti-2211/Echo)
 
