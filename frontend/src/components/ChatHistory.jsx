@@ -139,10 +139,6 @@ export default function ChatHistory({
   const handleDeleteChat = async (e, chatId) => {
     e.stopPropagation(); // Prevent chat selection when clicking delete
 
-    if (!window.confirm("Are you sure you want to delete this conversation?")) {
-      return;
-    }
-
     try {
       await deleteDoc(doc(db, "chats", chatId));
       console.log("Chat deleted:", chatId);
