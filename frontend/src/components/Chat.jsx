@@ -578,48 +578,54 @@ export default function Chat({
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input Area - ChatGPT Style Floating Island */}
+      {/* Input Area - ChatGPT Style */}
       <div className="border-t border-white/5 bg-gradient-to-t from-[#171717] to-transparent">
         <div className="max-w-3xl mx-auto px-4 pb-6 pt-4">
           <form onSubmit={handleSend} className="relative">
-            {/* Input Container */}
-            <div className="bg-[#2f2f2f] rounded-[26px] shadow-xl border border-white/10 overflow-hidden">
-              <div className="flex items-end gap-2 p-3">
-                {/* Paperclip Icon Button - No Function */}
+            {/* Input Container - Enhanced ChatGPT Style */}
+            <div className="bg-[#2f2f2f] rounded-[26px] shadow-2xl border border-white/10 overflow-hidden transition-all duration-200 hover:border-white/20 focus-within:border-teal-500/50 focus-within:shadow-teal-500/10">
+              <div className="flex items-end gap-3 p-4">
+                {/* Paperclip Icon Button - Disabled */}
                 <button
                   type="button"
                   disabled
-                  className="flex-shrink-0 p-2.5 text-gray-400 opacity-50 cursor-not-allowed"
+                  className="flex-shrink-0 p-2 text-gray-500 hover:text-gray-400 opacity-40 cursor-not-allowed transition-colors mb-1"
                   title="Attachments (Coming soon)"
                 >
-                  <Paperclip className="w-6 h-6" />
+                  <Paperclip className="w-5 h-5" />
                 </button>
 
-                {/* Auto-resize Textarea */}
-                <TextareaAutosize
-                  ref={inputRef}
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault();
-                      handleSend(e);
-                    }
-                  }}
-                  placeholder="Message Echo..."
-                  disabled={loading}
-                  minRows={1}
-                  maxRows={8}
-                  className="flex-1 bg-transparent text-white placeholder-gray-500 resize-none outline-none py-2 disabled:opacity-50 max-h-[200px] overflow-y-auto custom-scroll"
-                />
+                {/* Auto-resize Textarea - ChatGPT Style */}
+                <div className="flex-1 relative">
+                  <TextareaAutosize
+                    ref={inputRef}
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSend(e);
+                      }
+                    }}
+                    placeholder="Message Echo..."
+                    disabled={loading}
+                    minRows={1}
+                    maxRows={10}
+                    className="w-full bg-transparent text-white placeholder-gray-400 resize-none outline-none py-1 leading-relaxed disabled:opacity-50 max-h-[300px] overflow-y-auto custom-scroll"
+                    style={{
+                      fontSize: "15px",
+                      lineHeight: "24px",
+                    }}
+                  />
+                </div>
 
-                {/* Send/Stop Button */}
+                {/* Send/Stop Button - ChatGPT Style */}
                 {loading ? (
                   /* Stop Generation Button */
                   <button
                     type="button"
                     onClick={stopGeneration}
-                    className="flex-shrink-0 p-2 rounded-lg bg-gray-600 text-white hover:bg-gray-700 transition-all"
+                    className="flex-shrink-0 p-2.5 rounded-xl bg-white text-black hover:bg-gray-200 transition-all shadow-sm mb-0.5"
                     title="Stop generating"
                   >
                     <svg
@@ -635,10 +641,10 @@ export default function Chat({
                   <button
                     type="submit"
                     disabled={!input.trim()}
-                    className={`flex-shrink-0 p-2 rounded-lg transition-all ${
+                    className={`flex-shrink-0 p-2.5 rounded-xl transition-all shadow-sm mb-0.5 ${
                       input.trim()
-                        ? "bg-white text-black hover:bg-gray-200"
-                        : "bg-gray-700 text-gray-500 cursor-not-allowed"
+                        ? "bg-white text-black hover:bg-gray-100 hover:shadow-md"
+                        : "bg-gray-700/50 text-gray-500 cursor-not-allowed"
                     }`}
                     title="Send message"
                   >
@@ -646,6 +652,11 @@ export default function Chat({
                   </button>
                 )}
               </div>
+            </div>
+
+            {/* Helper Text - ChatGPT Style */}
+            <div className="text-center mt-2.5 text-xs text-gray-500">
+              <span>Press Enter to send, Shift + Enter for new line</span>
             </div>
           </form>
         </div>
