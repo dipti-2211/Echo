@@ -354,6 +354,7 @@ export default function Chat({
             content: msg.content,
           })),
           systemInstruction: PERSONAS[selectedPersona]?.prompt, // Add persona prompt
+          temperature: PERSONAS[selectedPersona]?.temperature || 0.7, // Add persona-specific temperature
         },
         {
           headers: {

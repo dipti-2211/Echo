@@ -340,4 +340,4 @@ const ChatArea = ({ userId, token }) => {
   );
 };
 
-export default ChatArea;
+

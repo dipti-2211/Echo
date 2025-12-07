@@ -143,7 +143,7 @@ const mockAIService = async (message) => {
 };
 
 // Real Groq AI Service
-const groqAIService = async (message, conversationHistory = []) => {
+const groqAIService = async (message, conversationHistory = [], temperature = 0.7) => {
     try {
         // Build messages array with history
         const messages = [
@@ -182,7 +182,7 @@ Remember: You are Echo - where thoughts echo through intelligence. Be helpful, a
             model: process.env.GROQ_MODEL || 'llama-3.3-70b-versatile',
             messages: messages,
             max_tokens: parseInt(process.env.GROQ_MAX_TOKENS) || 2000,
-            temperature: parseFloat(process.env.GROQ_TEMPERATURE) || 0.7
+            temperature: temperature // Use persona-specific temperature
         });
 
         return {
@@ -236,7 +236,7 @@ const generateChatTitle = async (userMessage) => {
 // Protected Chat Route - Requires valid Firebase token
 app.post('/api/chat', verifyToken, async (req, res) => {
     try {
-        const { message, conversationHistory } = req.body;
+        const { message, conversationHistory, temperature } = req.body;
 
         // Validate message
         if (!message || typeof message !== 'string' || !message.trim()) {
@@ -248,11 +248,12 @@ app.post('/api/chat', verifyToken, async (req, res) => {
 
         console.log(`Processing message from user ${req.user.email}: "${message.substring(0, 50)}..."`);
         console.log('📜 Received conversation history:', conversationHistory ? conversationHistory.length : 0, 'messages');
+        console.log('🌡️  Temperature:', temperature || 0.7);
 
         // Use real AI if available, otherwise fallback to mock
         let aiResponse;
         if (groqClient) {
-            aiResponse = await groqAIService(message.trim(), conversationHistory || []);
+            aiResponse = await groqAIService(message.trim(), conversationHistory || [], temperature || 0.7);
         } else {
             aiResponse = await mockAIService(message.trim());
         }
