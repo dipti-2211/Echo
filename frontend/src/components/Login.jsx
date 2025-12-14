@@ -192,8 +192,8 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 sm:p-6 md:p-8">
-      <div className="w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center p-4 sm:p-6 md:p-8 overflow-y-auto">
+      <div className="w-full max-w-md my-8">
         <div className="glass rounded-2xl p-6 sm:p-8 animate-fade-in">
           {/* Header */}
           <div className="text-center mb-6 sm:mb-8">
