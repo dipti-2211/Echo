@@ -1,11 +1,15 @@
 import React, { useEffect, useState } from "react";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "./firebaseConfig";
 import Login from "./components/Login";
 import Chat from "./components/Chat";
 import ChatHistory from "./components/ChatHistory";
+import SharedConversationPage from "./components/SharedConversationPage";
+import ErrorBoundary from "./components/ErrorBoundary";
 
-export default function App() {
+// Main chat application component
+function ChatApp() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeChatId, setActiveChatId] = useState(null);
@@ -50,14 +54,16 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-richBlack">
+    <div className="min-h-[100dvh] bg-richBlack overflow-x-hidden">
       {user ? (
-        <div className="flex h-screen overflow-hidden relative">
+        <div className="flex h-[100dvh] overflow-hidden relative">
           {/* Mobile Overlay - Only visible when sidebar is open on mobile */}
           {isSidebarOpen && (
             <div
-              className="fixed inset-0 bg-black/50 z-40 md:hidden"
+              className="fixed inset-0 bg-black/50 z-40 md:hidden backdrop-blur-sm"
               onClick={() => setIsSidebarOpen(false)}
+              style={{ touchAction: "none" }}
+              aria-hidden="true"
             />
           )}
 
@@ -88,5 +94,22 @@ export default function App() {
         </div>
       )}
     </div>
+  );
+}
+
+// Root App component with Router
+export default function App() {
+  return (
+    <ErrorBoundary>
+      <Router>
+        <Routes>
+          {/* Shared conversation route - public */}
+          <Route path="/share/:shareId" element={<SharedConversationPage />} />
+
+          {/* Main app route */}
+          <Route path="/*" element={<ChatApp />} />
+        </Routes>
+      </Router>
+    </ErrorBoundary>
   );
 }

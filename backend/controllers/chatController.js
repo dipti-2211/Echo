@@ -242,12 +242,12 @@ export const sendMessage = async (req, res) => {
             console.log('Using mock AI response - API key not configured');
         } else {
             try {
-                // Determine model based on API key type
+                // Enable GPT-5.1-Codex-Max (Preview) for all clients
                 const isGroqKey = process.env.OPENAI_API_KEY.startsWith('gsk_');
-                const defaultModel = isGroqKey ? 'llama-3.3-70b-versatile' : 'gpt-3.5-turbo';
+                const defaultModel = isGroqKey ? 'llama-3.3-70b-versatile' : 'gpt-5.1-codex-max';
                 const model = process.env.OPENAI_MODEL || defaultModel;
 
-                console.log('🤖 Sending to AI with', messages.length, 'messages in history');
+                console.log('🤖 Sending to AI with', messages.length, 'messages in history (Model: ' + model + ')');
                 console.log('📝 Messages:', JSON.stringify(messages, null, 2));
 
                 const completion = await openai.chat.completions.create({

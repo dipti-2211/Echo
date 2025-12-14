@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { signOut } from "firebase/auth";
 import { auth, db } from "../firebaseConfig";
 import {
@@ -8,25 +8,15 @@ import {
   doc,
   getDoc,
   setDoc,
-  serverTimestamp,
 } from "firebase/firestore";
 import axios from "axios";
-import {
-  Send,
-  LogOut,
-  Bot,
-  User,
-  Edit3,
-  Menu,
-  PanelLeftOpen,
-  Plus,
-  Paperclip,
-} from "lucide-react";
-import CodeBlock from "./CodeBlock";
+import { Send, Bot, Edit3, Menu, PanelLeftOpen } from "lucide-react";
 import TextareaAutosize from "react-textarea-autosize";
 import TypewriterText from "./TypewriterText";
 import ThinkingIndicator from "./ThinkingIndicator";
 import PersonaSelector, { PERSONAS } from "./PersonaSelector";
+import ShareButton from "./ShareButton";
+import logger from "../utils/logger";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5001";
 
@@ -52,6 +42,20 @@ export default function Chat({
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
+  // Define loadChat BEFORE the useEffect that uses it
+  const loadChat = useCallback(async (chatId) => {
+    try {
+      const chatDoc = await getDoc(doc(db, "chats", chatId));
+      if (chatDoc.exists()) {
+        const chatData = chatDoc.data();
+        setMessages(chatData.messages || []);
+        setCurrentChatId(chatId);
+      }
+    } catch (error) {
+      logger.error("Error loading chat:", error);
+    }
+  }, []);
+
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
@@ -59,38 +63,6 @@ export default function Chat({
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
-
-  // Test Firestore write capability on mount
-  useEffect(() => {
-    const testFirestoreWrite = async () => {
-      if (!user) return;
-
-      try {
-        console.log("🧪 Testing Firestore write capability...");
-        const testRef = doc(db, "test", "testDoc");
-        await setDoc(testRef, {
-          test: "hello",
-          timestamp: new Date(),
-          userId: user.uid,
-        });
-        console.log("✅ Firestore write test PASSED - writes are working!");
-      } catch (error) {
-        console.error("❌ Firestore write test FAILED:", error);
-        console.error("Error code:", error.code);
-        console.error("Error message:", error.message);
-        if (error.code === "permission-denied") {
-          console.error(
-            "🔥 PERMISSION DENIED - Check your Firestore security rules!"
-          );
-          console.error("Go to Firebase Console > Firestore Database > Rules");
-        }
-      }
-    };
-
-    if (user) {
-      testFirestoreWrite();
-    }
-  }, [user]);
 
   // Load chat when activeChatId changes
   useEffect(() => {
@@ -106,7 +78,7 @@ export default function Chat({
         inputRef.current?.focus();
       }, 100);
     }
-  }, [activeChatId]);
+  }, [activeChatId, currentChatId, loadChat]);
 
   // Cleanup: abort any ongoing requests when component unmounts
   useEffect(() => {
@@ -117,41 +89,31 @@ export default function Chat({
     };
   }, []);
 
-  const loadChat = async (chatId) => {
-    try {
-      const chatDoc = await getDoc(doc(db, "chats", chatId));
-      if (chatDoc.exists()) {
-        const chatData = chatDoc.data();
-        setMessages(chatData.messages || []);
-        setCurrentChatId(chatId);
-      }
-    } catch (error) {
-      console.error("Error loading chat:", error);
-    }
-  };
-
   // Helper function to save messages to existing chat
-  const saveMessagesToChat = async (chatId, userMessage, aiMessage) => {
-    try {
-      // Fetch current messages to avoid stale state
-      const chatDoc = await getDoc(doc(db, "chats", chatId));
-      const currentMessages = chatDoc.exists()
-        ? chatDoc.data().messages || []
-        : [];
+  const saveMessagesToChat = useCallback(
+    async (chatId, userMessage, aiMessage) => {
+      try {
+        // Fetch current messages to avoid stale state
+        const chatDoc = await getDoc(doc(db, "chats", chatId));
+        const currentMessages = chatDoc.exists()
+          ? chatDoc.data().messages || []
+          : [];
 
-      // Append new messages
-      const updatedMessages = [...currentMessages, userMessage, aiMessage];
+        // Append new messages
+        const updatedMessages = [...currentMessages, userMessage, aiMessage];
 
-      await updateDoc(doc(db, "chats", chatId), {
-        messages: updatedMessages,
-        updatedAt: new Date(),
-      });
+        await updateDoc(doc(db, "chats", chatId), {
+          messages: updatedMessages,
+          updatedAt: new Date(),
+        });
 
-      console.log(`💾 Saved messages to chat: ${chatId}`);
-    } catch (error) {
-      console.error("❌ Error saving messages:", error);
-    }
-  };
+        logger.log(`💾 Saved messages to chat: ${chatId}`);
+      } catch (error) {
+        logger.error("❌ Error saving messages:", error);
+      }
+    },
+    []
+  );
 
   const saveOrUpdateChat = async (
     userMessage,
@@ -181,305 +143,328 @@ export default function Chat({
 
         // Auto-rename after first exchange (only for new chats)
         if (isNewChat) {
-          console.log(`🚀 Triggering auto-rename for first exchange`);
+          logger.log(`🚀 Triggering auto-rename for first exchange`);
           generateAndUpdateTitle(chatRef.id, userMessage.content);
         }
       }
     } catch (error) {
-      console.error("Error saving chat:", error);
+      logger.error("Error saving chat:", error);
     }
   };
 
   // Auto-rename function - runs in background
-  const generateAndUpdateTitle = async (chatId, firstMessage) => {
-    try {
-      console.log(`🏷️ Generating title for chat ${chatId}...`);
-      const idToken = await user.getIdToken();
+  const generateAndUpdateTitle = useCallback(
+    async (chatId, firstMessage) => {
+      try {
+        logger.log(`🏷️ Generating title for chat ${chatId}...`);
+        const idToken = await user.getIdToken();
 
-      const response = await axios.post(
-        `${API_URL}/api/generate-title`,
-        { message: firstMessage },
-        {
-          headers: {
-            Authorization: `Bearer ${idToken}`,
-            "Content-Type": "application/json",
-          },
+        const response = await axios.post(
+          `${API_URL}/api/generate-title`,
+          { message: firstMessage },
+          {
+            headers: {
+              Authorization: `Bearer ${idToken}`,
+              "Content-Type": "application/json",
+            },
+          }
+        );
+
+        logger.log("📡 Title generation response:", response.data);
+
+        if (response.data.success) {
+          const newTitle = response.data.title;
+
+          // Update Firestore with new title
+          await updateDoc(doc(db, "chats", chatId), {
+            title: newTitle,
+            updatedAt: new Date(),
+          });
+
+          logger.log(`✅ Chat renamed to: "${newTitle}"`);
         }
-      );
-
-      console.log("📡 Title generation response:", response.data);
-
-      if (response.data.success) {
-        const newTitle = response.data.title;
-
-        // Update Firestore with new title
-        await updateDoc(doc(db, "chats", chatId), {
-          title: newTitle,
-          updatedAt: new Date(),
-        });
-
-        console.log(`✅ Chat renamed to: "${newTitle}"`);
+      } catch (error) {
+        logger.error("❌ Error generating title:", error);
+        logger.error("Error details:", error.response?.data);
+        // Silently fail - not critical to user experience
       }
-    } catch (error) {
-      console.error("❌ Error generating title:", error);
-      console.error("Error details:", error.response?.data);
-      // Silently fail - not critical to user experience
-    }
-  };
+    },
+    [user]
+  );
 
-  const stopGeneration = () => {
+  const stopGeneration = useCallback(() => {
     if (abortControllerRef.current) {
-      console.log("🛑 Stopping generation...");
+      logger.log("🛑 Stopping generation...");
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
       setLoading(false);
-      console.log("✅ Generation stopped");
+      logger.log("✅ Generation stopped");
     }
-  };
+  }, []);
 
-  const handleSend = async (e) => {
-    e.preventDefault();
-    e.stopPropagation();
+  const handleSend = useCallback(
+    async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
 
-    // Guard: prevent multiple simultaneous submissions
-    if (!input.trim() || loading) {
-      console.log("Blocked: empty input or already loading");
-      return;
-    }
-
-    const messageToSend = input.trim();
-
-    const userMessage = {
-      id: Date.now(),
-      role: "user",
-      content: messageToSend,
-      timestamp: new Date().toISOString(),
-    };
-
-    // Store current messages BEFORE updating state (React state is async)
-    const previousMessages = messages;
-
-    // Clear input and set loading IMMEDIATELY
-    setInput("");
-    setMessages((prev) => [...prev, userMessage]);
-    setLoading(true);
-
-    try {
-      // CRITICAL: Check currentChatId ONLY (not messages.length)
-      let chatId = currentChatId;
-
-      if (!chatId) {
-        // This is a NEW chat - create it FIRST
-        console.log(
-          "🆕 Creating new chat with title:",
-          messageToSend.substring(0, 50)
-        );
-
-        try {
-          console.log("📝 Creating new chat document...");
-
-          // Generate a unique ID manually
-          const newChatId = `chat_${Date.now()}_${Math.random()
-            .toString(36)
-            .substr(2, 9)}`;
-          chatId = newChatId;
-          setCurrentChatId(newChatId);
-
-          console.log("💾 Saving to Firestore (background):", {
-            docId: newChatId,
-            userId: user.uid,
-            title:
-              messageToSend.length > 50
-                ? messageToSend.substring(0, 50) + "..."
-                : messageToSend,
-          });
-
-          // Save to Firestore - don't wait for Promise, it will sync eventually
-          setDoc(doc(db, "chats", newChatId), {
-            userId: user.uid,
-            title:
-              messageToSend.length > 50
-                ? messageToSend.substring(0, 50) + "..."
-                : messageToSend,
-            messages: [],
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          }); // No .then() or .catch() - just fire and forget
-
-          console.log("📤 Chat save initiated (will sync in background)");
-
-          console.log("✅ New chat created with ID:", chatId);
-        } catch (firestoreError) {
-          console.error("❌ Firestore addDoc failed:", firestoreError);
-          throw new Error("Failed to create chat: " + firestoreError.message);
-        }
-
-        // Generate better title in background (don't await, use setTimeout to ensure non-blocking)
-        setTimeout(() => {
-          generateAndUpdateTitle(chatId, messageToSend).catch((err) => {
-            console.warn(
-              "⚠️ Title generation failed (non-critical):",
-              err.message
-            );
-          });
-        }, 0);
-
-        console.log("📝 Title generation queued, continuing...");
-      } else {
-        console.log("💬 Using existing chat:", chatId);
-      }
-
-      console.log("🔑 Getting Firebase token...");
-      // Get Firebase ID token and send to AI
-      const idToken = await user.getIdToken();
-      console.log("✅ Token obtained");
-
-      // Create AbortController for this request
-      abortControllerRef.current = new AbortController();
-
-      console.log("🤖 Calling AI API at:", API_URL);
-      console.log("🎭 Using persona:", selectedPersona);
-      console.log(
-        "📜 Sending conversation history:",
-        previousMessages.length,
-        "messages (excluding current user message)"
-      );
-
-      const response = await axios.post(
-        `${API_URL}/api/chat`,
-        {
-          message: messageToSend,
-          conversationHistory: previousMessages.map((msg) => ({
-            role: msg.role,
-            content: msg.content,
-          })),
-          systemInstruction: PERSONAS[selectedPersona]?.prompt, // Add persona prompt
-          temperature: PERSONAS[selectedPersona]?.temperature || 0.7, // Add persona-specific temperature
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${idToken}`,
-            "Content-Type": "application/json",
-          },
-          timeout: 30000, // 30 second timeout
-          signal: abortControllerRef.current.signal, // Add abort signal
-        }
-      );
-
-      // Clear abort controller after successful response
-      abortControllerRef.current = null;
-
-      console.log("✅ AI API responded with status:", response.status);
-      console.log("📦 Response data:", response.data);
-      console.log("📊 Current messages count:", messages.length);
-
-      if (response.data && response.data.success) {
-        const aiMessage = {
-          id: Date.now() + 1,
-          role: "assistant",
-          content: response.data.response,
-          timestamp: new Date().toISOString(),
-        };
-
-        console.log("💬 Adding AI message to UI...");
-        setMessages((prev) => [...prev, aiMessage]);
-
-        // Save both messages to Firestore - DON'T AWAIT (non-blocking)
-        console.log("💾 Saving to Firestore (background)...");
-        saveMessagesToChat(chatId, userMessage, aiMessage)
-          .then(() => console.log("✅ Messages saved!"))
-          .catch((err) => console.warn("⚠️ Save failed (non-critical):", err));
-
-        console.log("✅ All done!");
-      } else {
-        console.error("❌ AI response unsuccessful:", response.data);
-        throw new Error(
-          response.data?.message || "AI returned unsuccessful response"
-        );
-      }
-    } catch (error) {
-      // Check if request was aborted by user
-      if (error.code === "ERR_CANCELED" || error.name === "CanceledError") {
-        console.log("🛑 Request cancelled by user");
-        // Don't show error message for user-cancelled requests
+      // Guard: prevent multiple simultaneous submissions
+      if (!input.trim() || loading) {
+        logger.log("Blocked: empty input or already loading");
         return;
       }
 
-      console.error("❌ Error in handleSend:", error);
-      console.error("Error response data:", error.response?.data);
-      console.error("Error stack:", error.stack);
+      const messageToSend = input.trim();
 
-      const errorMessage = {
-        id: Date.now() + 1,
-        role: "assistant",
-        content: `Error: ${
-          error.response?.data?.message ||
-          error.message ||
-          "Failed to get AI response. Please try again."
-        }`,
+      const userMessage = {
+        id: Date.now(),
+        role: "user",
+        content: messageToSend,
         timestamp: new Date().toISOString(),
-        isError: true,
       };
-      setMessages((prev) => [...prev, errorMessage]);
-    } finally {
-      console.log("🏁 Setting loading to false");
-      setLoading(false);
-    }
-  };
 
-  const handleSignOut = async () => {
+      // Store current messages BEFORE updating state (React state is async)
+      const previousMessages = messages;
+
+      // Clear input and set loading IMMEDIATELY
+      setInput("");
+      setMessages((prev) => [...prev, userMessage]);
+      setLoading(true);
+
+      try {
+        // CRITICAL: Check currentChatId ONLY (not messages.length)
+        let chatId = currentChatId;
+
+        if (!chatId) {
+          // This is a NEW chat - create it FIRST
+          logger.log(
+            "🆕 Creating new chat with title:",
+            messageToSend.substring(0, 50)
+          );
+
+          try {
+            logger.log("📝 Creating new chat document...");
+
+            // Generate a unique ID manually
+            const newChatId = `chat_${Date.now()}_${Math.random()
+              .toString(36)
+              .substr(2, 9)}`;
+            chatId = newChatId;
+            setCurrentChatId(newChatId);
+
+            logger.log("💾 Saving to Firestore (background):", {
+              docId: newChatId,
+              userId: user.uid,
+              title:
+                messageToSend.length > 50
+                  ? messageToSend.substring(0, 50) + "..."
+                  : messageToSend,
+            });
+
+            // Save to Firestore - don't wait for Promise, it will sync eventually
+            setDoc(doc(db, "chats", newChatId), {
+              userId: user.uid,
+              title:
+                messageToSend.length > 50
+                  ? messageToSend.substring(0, 50) + "..."
+                  : messageToSend,
+              messages: [],
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            }); // No .then() or .catch() - just fire and forget
+
+            logger.log("📤 Chat save initiated (will sync in background)");
+
+            logger.log("✅ New chat created with ID:", chatId);
+          } catch (firestoreError) {
+            logger.error("❌ Firestore addDoc failed:", firestoreError);
+            throw new Error("Failed to create chat: " + firestoreError.message);
+          }
+
+          // Generate better title in background (don't await, use setTimeout to ensure non-blocking)
+          setTimeout(() => {
+            generateAndUpdateTitle(chatId, messageToSend).catch((err) => {
+              logger.warn(
+                "⚠️ Title generation failed (non-critical):",
+                err.message
+              );
+            });
+          }, 0);
+
+          logger.log("📝 Title generation queued, continuing...");
+        } else {
+          logger.log("💬 Using existing chat:", chatId);
+        }
+
+        logger.log("🔑 Getting Firebase token...");
+        // Get Firebase ID token and send to AI
+        const idToken = await user.getIdToken();
+        logger.log("✅ Token obtained");
+
+        // Create AbortController for this request
+        abortControllerRef.current = new AbortController();
+
+        logger.log("🤖 Calling AI API at:", API_URL);
+        logger.log("🎭 Using persona:", selectedPersona);
+        logger.log(
+          "📜 Sending conversation history:",
+          previousMessages.length,
+          "messages (excluding current user message)"
+        );
+
+        const response = await axios.post(
+          `${API_URL}/api/chat`,
+          {
+            message: messageToSend,
+            conversationHistory: previousMessages.map((msg) => ({
+              role: msg.role,
+              content: msg.content,
+            })),
+            systemInstruction: PERSONAS[selectedPersona]?.prompt, // Add persona prompt
+            temperature: PERSONAS[selectedPersona]?.temperature || 0.7, // Add persona-specific temperature
+          },
+          {
+            headers: {
+              Authorization: `Bearer ${idToken}`,
+              "Content-Type": "application/json",
+            },
+            timeout: 30000, // 30 second timeout
+            signal: abortControllerRef.current.signal, // Add abort signal
+          }
+        );
+
+        // Clear abort controller after successful response
+        abortControllerRef.current = null;
+
+        logger.log("✅ AI API responded with status:", response.status);
+        logger.log("📦 Response data:", response.data);
+        logger.log("📊 Current messages count:", messages.length);
+
+        if (response.data && response.data.success) {
+          const aiMessage = {
+            id: Date.now() + 1,
+            role: "assistant",
+            content: response.data.response,
+            timestamp: new Date().toISOString(),
+          };
+
+          logger.log("💬 Adding AI message to UI...");
+          setMessages((prev) => [...prev, aiMessage]);
+
+          // Save both messages to Firestore - DON'T AWAIT (non-blocking)
+          logger.log("💾 Saving to Firestore (background)...");
+          saveMessagesToChat(chatId, userMessage, aiMessage)
+            .then(() => logger.log("✅ Messages saved!"))
+            .catch((err) => logger.warn("⚠️ Save failed (non-critical):", err));
+
+          logger.log("✅ All done!");
+        } else {
+          logger.error("❌ AI response unsuccessful:", response.data);
+          throw new Error(
+            response.data?.message || "AI returned unsuccessful response"
+          );
+        }
+      } catch (error) {
+        // Check if request was aborted by user
+        if (error.code === "ERR_CANCELED" || error.name === "CanceledError") {
+          logger.log("🛑 Request cancelled by user");
+          // Don't show error message for user-cancelled requests
+          return;
+        }
+
+        logger.error("❌ Error in handleSend:", error);
+        logger.error("Error response data:", error.response?.data);
+
+        const errorMessage = {
+          id: Date.now() + 1,
+          role: "assistant",
+          content: `Error: ${
+            error.response?.data?.message ||
+            error.message ||
+            "Failed to get AI response. Please try again."
+          }`,
+          timestamp: new Date().toISOString(),
+          isError: true,
+        };
+        setMessages((prev) => [...prev, errorMessage]);
+      } finally {
+        logger.log("🏁 Setting loading to false");
+        setLoading(false);
+      }
+    },
+    [
+      input,
+      loading,
+      messages,
+      currentChatId,
+      selectedPersona,
+      user,
+      saveMessagesToChat,
+      generateAndUpdateTitle,
+    ]
+  );
+
+  const handleSignOut = useCallback(async () => {
     try {
       await signOut(auth);
     } catch (error) {
-      console.error("Sign out error:", error);
+      logger.error("Sign out error:", error);
     }
-  };
+  }, []);
 
   return (
-    <div className="h-screen flex flex-col">
-      {/* Header with Mobile Hamburger and Desktop Toggle */}
-      <header className="glass border-b border-subtleGrey px-4 md:px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          {/* Mobile Hamburger Menu */}
+    <div className="h-[100dvh] flex flex-col overflow-hidden bg-richBlack">
+      {/* Header - Premium Glassmorphism */}
+      <header className="glass sticky top-0 z-20 px-4 md:px-6 py-3 md:py-4 flex items-center justify-between flex-shrink-0 shadow-lg shadow-black/10">
+        <div className="flex items-center gap-2 md:gap-3">
+          {/* Mobile Hamburger Menu - 44px touch target */}
           <button
             onClick={toggleSidebar}
-            className="md:hidden p-2 hover:bg-gray-800 rounded-lg transition-colors"
+            aria-label="Open navigation menu"
+            className="md:hidden p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center hover:bg-white/5 rounded-xl transition-all duration-200 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/50"
             title="Open menu"
           >
-            <Menu className="w-6 h-6 text-white" />
+            <Menu className="w-5 h-5 text-gray-400" aria-hidden="true" />
           </button>
 
           {/* Desktop Sidebar Toggle - Only show when sidebar is closed */}
           {!isSidebarOpen && (
             <button
               onClick={toggleSidebar}
-              className="hidden md:block p-2 hover:bg-gray-800 rounded-lg transition-colors"
+              aria-label="Open sidebar"
+              className="hidden md:flex p-2.5 min-w-[44px] min-h-[44px] items-center justify-center hover:bg-white/5 rounded-xl transition-all duration-200 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/50"
               title="Open sidebar"
             >
-              <PanelLeftOpen className="w-5 h-5 text-white" />
+              <PanelLeftOpen
+                className="w-5 h-5 text-gray-400"
+                aria-hidden="true"
+              />
             </button>
           )}
 
-          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-teal-600 to-teal-700 flex items-center justify-center shadow-lg shadow-teal-500/30">
+          {/* Logo with premium glow */}
+          <div className="w-9 h-9 md:w-10 md:h-10 rounded-xl bg-gradient-to-br from-teal-500 to-teal-600 flex items-center justify-center shadow-lg shadow-teal-500/25 ring-1 ring-white/10">
             <Bot className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h1 className="font-semibold">Echo</h1>
-            <p className="text-sm text-mutedGrey hidden sm:block">
-              Where your thoughts echo through intelligence
+            <h1 className="font-semibold text-[15px] tracking-tight">Echo</h1>
+            <p className="text-xs text-gray-500 hidden sm:block tracking-wide">
+              AI Assistant
             </p>
           </div>
         </div>
 
-        {/* Persona Selector Trigger (Pencil Icon) */}
+        {/* Persona Selector - Premium button */}
         <div className="relative">
           <button
             ref={personaTriggerRef}
             onClick={() => setShowPersonaDropdown(!showPersonaDropdown)}
-            className="p-2 rounded-lg bg-teal-600/20 hover:bg-teal-600/30 transition-colors relative"
+            aria-label="Change AI mode"
+            aria-expanded={showPersonaDropdown}
+            aria-haspopup="menu"
+            className="p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl bg-teal-600/20 hover:bg-teal-600/30 border border-teal-500/20 hover:border-teal-500/30 transition-all duration-200 active:scale-95 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/50"
             title="Change AI Mode"
           >
-            <Edit3 className="w-5 h-5 text-teal-400" />
+            <Edit3 className="w-4 h-4 text-teal-400" aria-hidden="true" />
           </button>
 
           {/* Persona Dropdown Menu */}
@@ -493,20 +478,26 @@ export default function Chat({
         </div>
       </header>
 
-      {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto custom-scroll">
+      {/* Messages Area - Clean background with scroll chaining prevention */}
+      <div
+        className="flex-1 overflow-y-auto overflow-x-hidden custom-scroll bg-gradient-to-b from-richBlack to-[#0a0a0a]"
+        style={{ overscrollBehavior: "contain" }}
+      >
         {messages.length === 0 ? (
-          <div className="text-center py-12 animate-fade-in px-4">
-            <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-br from-teal-600 to-teal-700 mb-6 shadow-xl shadow-teal-500/30">
-              <Bot className="w-10 h-10 text-white" />
+          <div className="text-center py-8 md:py-20 animate-fade-in px-3 md:px-4">
+            {/* Premium Logo */}
+            <div className="inline-flex items-center justify-center w-12 h-12 md:w-20 md:h-20 rounded-xl md:rounded-2xl bg-gradient-to-br from-teal-500 to-teal-600 mb-4 md:mb-6 shadow-2xl shadow-teal-500/20 ring-1 ring-white/10">
+              <Bot className="w-6 h-6 md:w-10 md:h-10 text-white" />
             </div>
-            <h2 className="text-2xl font-semibold mb-2">Welcome to Echo</h2>
-            <p className="text-mutedGrey mb-8">
-              Where your thoughts echo through intelligence
+            <h2 className="text-xl md:text-3xl font-semibold mb-2 md:mb-3 tracking-tight">
+              Welcome to Echo
+            </h2>
+            <p className="text-gray-500 mb-6 md:mb-10 text-xs md:text-base max-w-md mx-auto leading-relaxed">
+              Your AI assistant for thoughtful conversations
             </p>
 
-            {/* Starter Prompts */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-2xl mx-auto">
+            {/* Starter Prompts - Compact on mobile */}
+            <div className="grid grid-cols-2 gap-2 md:gap-3 max-w-2xl mx-auto">
               {[
                 "What can you help me with?",
                 "Explain quantum computing",
@@ -516,49 +507,84 @@ export default function Chat({
                 <button
                   key={prompt}
                   onClick={() => setInput(prompt)}
-                  className="glass px-4 py-3 rounded-xl text-left hover:bg-teal-900/20 hover:border-teal-500/30 transition-all duration-300"
+                  className="glass-card px-3 md:px-4 py-3 md:py-4 min-h-[44px] md:min-h-[56px] rounded-lg md:rounded-xl text-left hover:bg-white/5 hover:border-white/10 transition-all duration-300 active:scale-[0.98] group focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/50"
                 >
-                  <p className="text-sm">{prompt}</p>
+                  <p className="text-xs md:text-sm text-gray-400 group-hover:text-white transition-colors leading-relaxed break-words">
+                    {prompt}
+                  </p>
                 </button>
               ))}
             </div>
           </div>
         ) : (
-          <div className="flex flex-col">
-            {messages.map((message) => (
-              <div key={message.id} className="w-full py-8">
-                <div className="max-w-3xl mx-auto px-4 flex gap-4">
-                  {/* Avatar */}
+          <div className="flex flex-col py-4">
+            {messages.map((message, index) => (
+              <div
+                key={message.id}
+                className={`w-full py-5 md:py-6 ${
+                  message.role === "user" ? "bg-white/[0.02]" : ""
+                }`}
+              >
+                <div className="max-w-3xl mx-auto px-4 md:px-6 flex gap-4">
+                  {/* Avatar - Premium styling */}
                   {message.role === "assistant" ? (
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-teal-600 to-teal-700 flex items-center justify-center flex-shrink-0 shadow-md shadow-teal-500/30">
-                      <Bot className="w-5 h-5 text-white" />
+                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-teal-500 to-teal-600 flex items-center justify-center flex-shrink-0 shadow-md shadow-teal-500/20 ring-1 ring-white/10">
+                      <Bot className="w-4 h-4 text-white" />
                     </div>
                   ) : (
-                    <div className="w-8 h-8 rounded-full bg-primaryWhite text-richBlack flex items-center justify-center flex-shrink-0 font-semibold text-sm">
+                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-gray-600 to-gray-700 text-white flex items-center justify-center flex-shrink-0 font-medium text-sm ring-1 ring-white/10">
                       {user?.displayName?.charAt(0) ||
                         user?.email?.charAt(0)?.toUpperCase() ||
                         "U"}
                     </div>
                   )}
 
-                  {/* Message Content */}
-                  <div className="flex-1 min-w-0">
+                  {/* Message Content - Premium typography with word break */}
+                  <div className="flex-1 min-w-0 overflow-x-hidden">
+                    <p className="text-[11px] uppercase tracking-wider text-gray-500 mb-2 font-medium">
+                      {message.role === "assistant" ? "Echo" : "You"}
+                    </p>
                     {message.role === "assistant" ? (
-                      <TypewriterText
-                        content={message.content}
-                        speed={8}
-                        chunkSize={4}
-                      />
+                      <div className="break-words overflow-wrap-anywhere">
+                        <TypewriterText
+                          content={message.content}
+                          speed={8}
+                          chunkSize={4}
+                        />
+                      </div>
                     ) : (
-                      <p className="text-primaryWhite whitespace-pre-wrap leading-relaxed">
+                      <p className="text-gray-200 whitespace-pre-wrap leading-[1.75] text-[15px] break-words overflow-wrap-anywhere">
                         {message.content}
                       </p>
                     )}
 
-                    {/* Timestamp */}
-                    <p className="text-xs text-gray-500 mt-2">
-                      {new Date(message.timestamp).toLocaleTimeString()}
-                    </p>
+                    {/* Timestamp and Actions - Subtle styling */}
+                    <div className="flex items-center gap-3 mt-3 flex-wrap">
+                      <p className="text-xs text-gray-500">
+                        {new Date(message.timestamp).toLocaleTimeString()}
+                      </p>
+
+                      {/* Share Button - Only show for AI responses */}
+                      {message.role === "assistant" && !message.isError && (
+                        <ShareButton
+                          question={(() => {
+                            // Find the user message immediately before this AI response
+                            const msgIndex = messages.findIndex(
+                              (m) => m.id === message.id
+                            );
+                            if (msgIndex > 0) {
+                              const prevMsg = messages[msgIndex - 1];
+                              if (prevMsg.role === "user") {
+                                return prevMsg.content;
+                              }
+                            }
+                            return "User question";
+                          })()}
+                          answer={message.content}
+                          conversationId={currentChatId}
+                        />
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -578,24 +604,17 @@ export default function Chat({
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input Area - ChatGPT Style */}
-      <div className="border-t border-white/5 bg-gradient-to-t from-[#171717] to-transparent">
-        <div className="max-w-3xl mx-auto px-4 pb-6 pt-4">
+      {/* Input Area - Premium floating style */}
+      <div className="flex-shrink-0 bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a] to-transparent pt-2">
+        <div
+          className="max-w-3xl mx-auto px-3 md:px-4 pb-4 md:pb-6"
+          style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
+        >
           <form onSubmit={handleSend} className="relative">
-            {/* Input Container - Enhanced ChatGPT Style */}
-            <div className="bg-[#2f2f2f] rounded-[26px] shadow-2xl border border-white/10 overflow-hidden transition-all duration-200 hover:border-white/20 focus-within:border-teal-500/50 focus-within:shadow-teal-500/10">
-              <div className="flex items-end gap-3 p-4">
-                {/* Paperclip Icon Button - Disabled */}
-                <button
-                  type="button"
-                  disabled
-                  className="flex-shrink-0 p-2 text-gray-500 hover:text-gray-400 opacity-40 cursor-not-allowed transition-colors mb-1"
-                  title="Attachments (Coming soon)"
-                >
-                  <Paperclip className="w-5 h-5" />
-                </button>
-
-                {/* Auto-resize Textarea - ChatGPT Style */}
+            {/* Input Container - Premium glass effect */}
+            <div className="input-glass rounded-2xl md:rounded-[22px] overflow-hidden transition-all duration-300 hover:shadow-[0_20px_40px_-12px_rgba(0,0,0,0.4)] focus-within:ring-1 focus-within:ring-teal-500/30 focus-within:shadow-teal-500/5">
+              <div className="flex items-end gap-2 md:gap-3 p-3 md:p-4 pl-5 md:pl-6">
+                {/* Auto-resize Textarea - Premium typography */}
                 <div className="flex-1 relative">
                   <TextareaAutosize
                     ref={inputRef}
@@ -610,22 +629,22 @@ export default function Chat({
                     placeholder="Message Echo..."
                     disabled={loading}
                     minRows={1}
-                    maxRows={10}
-                    className="w-full bg-transparent text-white placeholder-gray-400 resize-none outline-none py-1 leading-relaxed disabled:opacity-50 max-h-[300px] overflow-y-auto custom-scroll"
+                    maxRows={8}
+                    className="w-full bg-transparent text-white placeholder-gray-500 resize-none outline-none py-2 leading-relaxed disabled:opacity-50 max-h-[200px] md:max-h-[300px] overflow-y-auto custom-scroll"
                     style={{
-                      fontSize: "15px",
-                      lineHeight: "24px",
+                      fontSize: "16px",
+                      lineHeight: "26px",
+                      letterSpacing: "-0.01em",
                     }}
                   />
                 </div>
 
-                {/* Send/Stop Button - ChatGPT Style */}
+                {/* Send/Stop Button - Premium styling with focus ring */}
                 {loading ? (
-                  /* Stop Generation Button */
                   <button
                     type="button"
                     onClick={stopGeneration}
-                    className="flex-shrink-0 p-2.5 rounded-xl bg-white text-black hover:bg-gray-200 transition-all shadow-sm mb-0.5"
+                    className="flex-shrink-0 p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl bg-white text-black hover:bg-gray-100 transition-all duration-200 shadow-lg shadow-black/20 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[#2f2f2f]"
                     title="Stop generating"
                   >
                     <svg
@@ -637,14 +656,13 @@ export default function Chat({
                     </svg>
                   </button>
                 ) : (
-                  /* Send Button */
                   <button
                     type="submit"
                     disabled={!input.trim()}
-                    className={`flex-shrink-0 p-2.5 rounded-xl transition-all shadow-sm mb-0.5 ${
+                    className={`flex-shrink-0 p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[#2f2f2f] ${
                       input.trim()
-                        ? "bg-white text-black hover:bg-gray-100 hover:shadow-md"
-                        : "bg-gray-700/50 text-gray-500 cursor-not-allowed"
+                        ? "bg-white text-black hover:bg-gray-100 shadow-lg shadow-black/20 hover:shadow-xl hover:shadow-black/30 active:scale-95"
+                        : "bg-white/10 text-gray-600 cursor-not-allowed"
                     }`}
                     title="Send message"
                   >
@@ -654,9 +672,9 @@ export default function Chat({
               </div>
             </div>
 
-            {/* Helper Text - ChatGPT Style */}
-            <div className="text-center mt-2.5 text-xs text-gray-500">
-              <span>Press Enter to send, Shift + Enter for new line</span>
+            {/* Helper Text - Premium subtle styling */}
+            <div className="hidden sm:block text-center mt-3 text-[11px] text-gray-600 tracking-wide">
+              <span>Press Enter to send · Shift + Enter for new line</span>
             </div>
           </form>
         </div>

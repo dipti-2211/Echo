@@ -59,6 +59,13 @@ export default {
             fontFamily: {
                 sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
             },
+            /* Premium: Dynamic viewport height support */
+            height: {
+                'screen-dvh': '100dvh',
+            },
+            minHeight: {
+                'screen-dvh': '100dvh',
+            },
         },
     },
     plugins: [],

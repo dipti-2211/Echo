@@ -1,0 +1,37 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background Gradient -->
+  <rect width="1200" height="630" fill="url(#gradient)"/>
+  <defs>
+    <linearGradient id="gradient" x1="0" y1="0" x2="1200" y2="630" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#0a0a0a"/>
+      <stop offset="100%" stop-color="#1a1a1a"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- Decorative circles -->
+  <circle cx="100" cy="100" r="150" fill="#14b8a6" opacity="0.1"/>
+  <circle cx="1100" cy="530" r="120" fill="#14b8a6" opacity="0.15"/>
+  
+  <!-- Logo/Icon -->
+  <circle cx="600" cy="220" r="60" fill="#14b8a6" opacity="0.2"/>
+  <circle cx="600" cy="220" r="45" fill="#14b8a6"/>
+  <path d="M 580 210 Q 600 190 620 210 L 620 230 Q 600 250 580 230 Z" fill="white"/>
+  
+  <!-- Title -->
+  <text x="600" y="340" font-family="Arial, sans-serif" font-size="72" font-weight="bold" fill="white" text-anchor="middle">
+    Echo
+  </text>
+  
+  <!-- Subtitle -->
+  <text x="600" y="400" font-family="Arial, sans-serif" font-size="32" fill="#14b8a6" text-anchor="middle">
+    AI-Powered Conversations
+  </text>
+  
+  <!-- Features -->
+  <text x="600" y="460" font-family="Arial, sans-serif" font-size="20" fill="#a0a0a0" text-anchor="middle">
+    Multiple AI Personalities • Smart Responses • Beautiful UI
+  </text>
+  
+  <!-- Bottom accent -->
+  <rect x="400" y="550" width="400" height="4" fill="#14b8a6" rx="2"/>
+</svg>

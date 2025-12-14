@@ -5,6 +5,7 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { verifyToken } from './middleware/verifyToken.js';
 import OpenAI from 'openai';
+import shareRoutes from './routes/shareRoutes.js';
 
 // Load environment variables
 dotenv.config();
@@ -330,6 +331,9 @@ app.post('/api/echo', (req, res) => {
         received: req.body
     });
 });
+
+// Share conversation routes
+app.use('/api/share', shareRoutes);
 
 // 404 handler
 app.use((req, res) => {
