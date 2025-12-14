@@ -224,6 +224,14 @@ export default function ChatHistory({
     setShowLogoutModal(true);
   };
 
+  const handleNewChat = () => {
+    // Close sidebar on mobile when new chat is clicked
+    if (window.innerWidth < 768 && isSidebarOpen) {
+      toggleSidebar();
+    }
+    onNewChat();
+  };
+
   return (
     <>
       {/* Logout Confirmation Modal */}
@@ -277,7 +285,7 @@ export default function ChatHistory({
           </div>
 
           <button
-            onClick={onNewChat}
+            onClick={handleNewChat}
             className="w-full flex items-center justify-center gap-3 px-4 py-3 min-h-[48px] bg-white/5 hover:bg-white/10 rounded-xl border border-white/5 hover:border-white/10 transition-all duration-200 group active:scale-[0.98] shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/50"
             title="Start a new conversation"
           >
