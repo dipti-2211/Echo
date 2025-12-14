@@ -222,16 +222,19 @@ export default function Chat({
         timestamp: new Date().toISOString(),
       };
 
-      // Store current messages BEFORE updating state (React state is async)
-      const previousMessages = messages;
-
+      // Get current messages from state using callback form
+      let previousMessages = [];
+      
       // Clear input and set loading IMMEDIATELY
       setInput("");
-      setMessages((prev) => [...prev, userMessage]);
+      setMessages((prev) => {
+        previousMessages = prev; // Capture current messages
+        return [...prev, userMessage];
+      });
       setLoading(true);
 
       try {
-        // CRITICAL: Check currentChatId ONLY (not messages.length)
+        // CRITICAL: Use currentChatId from state - get it fresh each time
         let chatId = currentChatId;
 
         if (!chatId) {
@@ -249,6 +252,8 @@ export default function Chat({
               .toString(36)
               .substr(2, 9)}`;
             chatId = newChatId;
+            
+            // IMPORTANT: Set the currentChatId state immediately
             setCurrentChatId(newChatId);
 
             logger.log("💾 Saving to Firestore (background):", {
@@ -394,7 +399,6 @@ export default function Chat({
     [
       input,
       loading,
-      messages,
       currentChatId,
       selectedPersona,
       user,
