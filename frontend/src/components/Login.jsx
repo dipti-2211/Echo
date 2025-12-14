@@ -192,18 +192,18 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
+    <div className="min-h-screen flex items-center justify-center p-4 sm:p-6 md:p-8">
       <div className="w-full max-w-md">
-        <div className="glass rounded-2xl p-8 animate-fade-in">
+        <div className="glass rounded-2xl p-6 sm:p-8 animate-fade-in">
           {/* Header */}
-          <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-darkZinc mb-4">
-              <LogIn className="w-8 h-8 text-primaryWhite" />
+          <div className="text-center mb-6 sm:mb-8">
+            <div className="inline-flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-darkZinc mb-3 sm:mb-4">
+              <LogIn className="w-7 h-7 sm:w-8 sm:h-8 text-primaryWhite" />
             </div>
-            <h1 className="text-3xl font-bold mb-2">
+            <h1 className="text-2xl sm:text-3xl font-bold mb-2">
               {isSignUp ? "Create an Account" : "Welcome Back"}
             </h1>
-            <p className="text-mutedGrey">
+            <p className="text-sm sm:text-base text-mutedGrey">
               {isSignUp
                 ? "Join Echo and start your journey"
                 : "Where your thoughts echo through intelligence"}
@@ -224,9 +224,9 @@ export default function Login() {
               <button
                 onClick={handleGoogleSignIn}
                 disabled={loading}
-                className="w-full flex items-center justify-center gap-3 px-6 py-3 bg-primaryWhite text-richBlack rounded-xl font-medium hover:bg-opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed mb-4"
+                className="w-full flex items-center justify-center gap-2 sm:gap-3 px-4 sm:px-6 py-2.5 sm:py-3 bg-primaryWhite text-richBlack rounded-xl text-sm sm:text-base font-medium hover:bg-opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed mb-4"
               >
-                <svg className="w-5 h-5" viewBox="0 0 24 24">
+                <svg className="w-4 h-4 sm:w-5 sm:h-5" viewBox="0 0 24 24">
                   <path
                     fill="currentColor"
                     d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -269,13 +269,13 @@ export default function Login() {
               </div>
 
               {/* Email/Password Form */}
-              <form onSubmit={handleEmailAuth} className="space-y-4">
+              <form onSubmit={handleEmailAuth} className="space-y-3 sm:space-y-4">
                 <div>
-                  <label className="block text-sm text-mutedGrey mb-2">
+                  <label className="block text-xs sm:text-sm text-mutedGrey mb-1.5 sm:mb-2">
                     Email
                   </label>
                   <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-mutedGrey" />
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-mutedGrey" />
                     <input
                       type="email"
                       value={email}
@@ -283,13 +283,13 @@ export default function Login() {
                       placeholder="your@email.com"
                       required
                       disabled={loading}
-                      className="w-full pl-11 pr-4 py-3 bg-darkZinc border border-subtleGrey rounded-xl text-primaryWhite placeholder-mutedGrey focus:outline-none focus:ring-2 focus:ring-primaryWhite/20 transition-all disabled:opacity-50"
+                      className="w-full pl-10 sm:pl-11 pr-4 py-2.5 sm:py-3 text-sm sm:text-base bg-darkZinc border border-subtleGrey rounded-xl text-primaryWhite placeholder-mutedGrey focus:outline-none focus:ring-2 focus:ring-primaryWhite/20 transition-all disabled:opacity-50"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm text-mutedGrey mb-2">
+                  <label className="block text-xs sm:text-sm text-mutedGrey mb-1.5 sm:mb-2">
                     Password
                   </label>
                   <div className="relative">
@@ -300,7 +300,7 @@ export default function Login() {
                       placeholder="••••••••"
                       required
                       disabled={loading}
-                      className="w-full px-4 pr-11 py-3 bg-darkZinc border border-subtleGrey rounded-xl text-primaryWhite placeholder-mutedGrey focus:outline-none focus:ring-2 focus:ring-primaryWhite/20 transition-all disabled:opacity-50"
+                      className="w-full px-4 pr-10 sm:pr-11 py-2.5 sm:py-3 text-sm sm:text-base bg-darkZinc border border-subtleGrey rounded-xl text-primaryWhite placeholder-mutedGrey focus:outline-none focus:ring-2 focus:ring-primaryWhite/20 transition-all disabled:opacity-50"
                     />
                     <button
                       type="button"
@@ -309,9 +309,9 @@ export default function Login() {
                       tabIndex={-1}
                     >
                       {showPassword ? (
-                        <EyeOff className="w-5 h-5" />
+                        <EyeOff className="w-4 h-4 sm:w-5 sm:h-5" />
                       ) : (
-                        <Eye className="w-5 h-5" />
+                        <Eye className="w-4 h-4 sm:w-5 sm:h-5" />
                       )}
                     </button>
                   </div>
@@ -333,7 +333,7 @@ export default function Login() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full px-6 py-3 bg-darkZinc border border-subtleGrey rounded-xl text-primaryWhite font-medium hover:bg-subtleGrey transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full px-4 sm:px-6 py-2.5 sm:py-3 text-sm sm:text-base bg-darkZinc border border-subtleGrey rounded-xl text-primaryWhite font-medium hover:bg-subtleGrey transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {loading
                     ? "Processing..."
@@ -346,7 +346,7 @@ export default function Login() {
               {/* Toggle Sign Up/Sign In */}
               <button
                 onClick={() => setIsSignUp(!isSignUp)}
-                className="w-full mt-4 text-center text-sm text-mutedGrey hover:text-primaryWhite transition-colors"
+                className="w-full mt-3 sm:mt-4 text-center text-xs sm:text-sm text-mutedGrey hover:text-primaryWhite transition-colors"
               >
                 {isSignUp
                   ? "Already have an account? Log in"
@@ -354,7 +354,7 @@ export default function Login() {
               </button>
 
               {/* Divider */}
-              <div className="relative my-6">
+              <div className="relative my-4 sm:my-6">
                 <div className="absolute inset-0 flex items-center">
                   <div className="w-full border-t border-subtleGrey"></div>
                 </div>
@@ -367,9 +367,9 @@ export default function Login() {
               <button
                 onClick={handleGuestSignIn}
                 disabled={loading}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-transparent border border-white/20 text-white/70 rounded-xl text-sm font-medium hover:bg-white/10 hover:text-white hover:border-white/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full flex items-center justify-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm bg-transparent border border-white/20 text-white/70 rounded-xl font-medium hover:bg-white/10 hover:text-white hover:border-white/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <UserX className="w-4 h-4" />
+                <UserX className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 Continue as Guest
               </button>
             </>
@@ -493,7 +493,7 @@ export default function Login() {
         </div>
 
         {/* Footer */}
-        <p className="text-center text-mutedGrey text-sm mt-6">
+        <p className="text-center text-mutedGrey text-xs sm:text-sm mt-4 sm:mt-6 px-4">
           By signing in, you agree to our Terms and Privacy Policy
         </p>
       </div>
