@@ -37,6 +37,7 @@ export default function Chat({
   const inputRef = useRef(null);
   const abortControllerRef = useRef(null);
   const personaTriggerRef = useRef(null);
+  const chatIdRef = useRef(activeChatId); // Track chatId with ref to avoid stale closures
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -68,10 +69,12 @@ export default function Chat({
   useEffect(() => {
     if (activeChatId && activeChatId !== currentChatId) {
       loadChat(activeChatId);
+      chatIdRef.current = activeChatId; // Update ref
     } else if (!activeChatId && activeChatId !== currentChatId) {
       // New chat - reset everything
       setMessages([]);
       setCurrentChatId(null);
+      chatIdRef.current = null; // Reset ref
       setInput("");
       // Auto-focus input for immediate typing
       setTimeout(() => {
@@ -224,7 +227,7 @@ export default function Chat({
 
       // Get current messages from state using callback form
       let previousMessages = [];
-      
+
       // Clear input and set loading IMMEDIATELY
       setInput("");
       setMessages((prev) => {
@@ -234,8 +237,8 @@ export default function Chat({
       setLoading(true);
 
       try {
-        // CRITICAL: Use currentChatId from state - get it fresh each time
-        let chatId = currentChatId;
+        // CRITICAL: Use chatIdRef.current for immediate access (not stale closure)
+        let chatId = chatIdRef.current;
 
         if (!chatId) {
           // This is a NEW chat - create it FIRST
@@ -252,9 +255,10 @@ export default function Chat({
               .toString(36)
               .substr(2, 9)}`;
             chatId = newChatId;
-            
-            // IMPORTANT: Set the currentChatId state immediately
+
+            // IMPORTANT: Set BOTH state and ref immediately
             setCurrentChatId(newChatId);
+            chatIdRef.current = newChatId; // Update ref for immediate access
 
             logger.log("💾 Saving to Firestore (background):", {
               docId: newChatId,
@@ -399,7 +403,6 @@ export default function Chat({
     [
       input,
       loading,
-      currentChatId,
       selectedPersona,
       user,
       saveMessagesToChat,
