@@ -33,11 +33,13 @@ export default function Chat({
   const [currentChatId, setCurrentChatId] = useState(activeChatId);
   const [selectedPersona, setSelectedPersona] = useState("default");
   const [showPersonaDropdown, setShowPersonaDropdown] = useState(false);
+  const [backendConversationId, setBackendConversationId] = useState(null); // Track backend conversation ID
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
   const abortControllerRef = useRef(null);
   const personaTriggerRef = useRef(null);
   const chatIdRef = useRef(activeChatId); // Track chatId with ref to avoid stale closures
+  const backendConversationIdRef = useRef(null); // Track backend conversation ID with ref
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -51,6 +53,7 @@ export default function Chat({
         const chatData = chatDoc.data();
         setMessages(chatData.messages || []);
         setCurrentChatId(chatId);
+        chatIdRef.current = chatId; // SYNC ref with state
       }
     } catch (error) {
       logger.error("Error loading chat:", error);
@@ -70,12 +73,18 @@ export default function Chat({
     if (activeChatId && activeChatId !== currentChatId) {
       loadChat(activeChatId);
       chatIdRef.current = activeChatId; // Update ref
+      // Reset backend conversation ID when switching chats
+      setBackendConversationId(null);
+      backendConversationIdRef.current = null;
     } else if (!activeChatId && activeChatId !== currentChatId) {
       // New chat - reset everything
       setMessages([]);
       setCurrentChatId(null);
       chatIdRef.current = null; // Reset ref
       setInput("");
+      // Reset backend conversation ID
+      setBackendConversationId(null);
+      backendConversationIdRef.current = null;
       // Auto-focus input for immediate typing
       setTimeout(() => {
         inputRef.current?.focus();
@@ -225,81 +234,43 @@ export default function Chat({
         timestamp: new Date().toISOString(),
       };
 
-      // Get current messages from state using callback form
-      let previousMessages = [];
+      // Store previous messages BEFORE updating
+      const previousMessages = [...messages];
 
-      // Clear input and set loading IMMEDIATELY
+      // Clear input and add user message IMMEDIATELY (optimistic UI)
       setInput("");
-      setMessages((prev) => {
-        previousMessages = prev; // Capture current messages
-        return [...prev, userMessage];
-      });
+      setMessages((prev) => [...prev, userMessage]);
       setLoading(true);
 
       try {
-        // CRITICAL: Use chatIdRef.current for immediate access (not stale closure)
+        // Use ref for immediate access to current chat ID
         let chatId = chatIdRef.current;
+        logger.log("📌 Current chatIdRef.current:", chatId);
 
         if (!chatId) {
-          // This is a NEW chat - create it FIRST
-          logger.log(
-            "🆕 Creating new chat with title:",
-            messageToSend.substring(0, 50)
-          );
+          // Create NEW chat
+          const newChatId = `chat_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+          chatId = newChatId;
+          
+          // Update BOTH ref and state immediately
+          chatIdRef.current = newChatId;
+          setCurrentChatId(newChatId);
+          
+          logger.log("🆕 Created new chat:", newChatId);
 
-          try {
-            logger.log("📝 Creating new chat document...");
+          // Save to Firestore (fire and forget)
+          setDoc(doc(db, "chats", newChatId), {
+            userId: user.uid,
+            title: messageToSend.length > 50 ? messageToSend.substring(0, 50) + "..." : messageToSend,
+            messages: [],
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          });
 
-            // Generate a unique ID manually
-            const newChatId = `chat_${Date.now()}_${Math.random()
-              .toString(36)
-              .substr(2, 9)}`;
-            chatId = newChatId;
-
-            // IMPORTANT: Set BOTH state and ref immediately
-            setCurrentChatId(newChatId);
-            chatIdRef.current = newChatId; // Update ref for immediate access
-
-            logger.log("💾 Saving to Firestore (background):", {
-              docId: newChatId,
-              userId: user.uid,
-              title:
-                messageToSend.length > 50
-                  ? messageToSend.substring(0, 50) + "..."
-                  : messageToSend,
-            });
-
-            // Save to Firestore - don't wait for Promise, it will sync eventually
-            setDoc(doc(db, "chats", newChatId), {
-              userId: user.uid,
-              title:
-                messageToSend.length > 50
-                  ? messageToSend.substring(0, 50) + "..."
-                  : messageToSend,
-              messages: [],
-              createdAt: new Date(),
-              updatedAt: new Date(),
-            }); // No .then() or .catch() - just fire and forget
-
-            logger.log("📤 Chat save initiated (will sync in background)");
-
-            logger.log("✅ New chat created with ID:", chatId);
-          } catch (firestoreError) {
-            logger.error("❌ Firestore addDoc failed:", firestoreError);
-            throw new Error("Failed to create chat: " + firestoreError.message);
-          }
-
-          // Generate better title in background (don't await, use setTimeout to ensure non-blocking)
+          // Generate title in background
           setTimeout(() => {
-            generateAndUpdateTitle(chatId, messageToSend).catch((err) => {
-              logger.warn(
-                "⚠️ Title generation failed (non-critical):",
-                err.message
-              );
-            });
-          }, 0);
-
-          logger.log("📝 Title generation queued, continuing...");
+            generateAndUpdateTitle(newChatId, messageToSend).catch(() => {});
+          }, 100);
         } else {
           logger.log("💬 Using existing chat:", chatId);
         }
@@ -319,11 +290,14 @@ export default function Chat({
           previousMessages.length,
           "messages (excluding current user message)"
         );
+        logger.log("🔗 Backend conversationId:", backendConversationIdRef.current);
 
         const response = await axios.post(
           `${API_URL}/api/chat`,
           {
+            userId: user.uid, // Include userId for backend
             message: messageToSend,
+            conversationId: backendConversationIdRef.current, // Include conversationId to continue conversation
             conversationHistory: previousMessages.map((msg) => ({
               role: msg.role,
               content: msg.content,
@@ -349,6 +323,13 @@ export default function Chat({
         logger.log("📊 Current messages count:", messages.length);
 
         if (response.data && response.data.success) {
+          // Capture conversationId from backend response for follow-up messages
+          if (response.data.conversationId && !backendConversationIdRef.current) {
+            logger.log("🆕 Received conversationId from backend:", response.data.conversationId);
+            setBackendConversationId(response.data.conversationId);
+            backendConversationIdRef.current = response.data.conversationId;
+          }
+
           const aiMessage = {
             id: Date.now() + 1,
             role: "assistant",
@@ -403,6 +384,7 @@ export default function Chat({
     [
       input,
       loading,
+      messages,
       selectedPersona,
       user,
       saveMessagesToChat,
