@@ -7,6 +7,7 @@ import Chat from "./components/Chat";
 import ChatHistory from "./components/ChatHistory";
 import SharedConversationPage from "./components/SharedConversationPage";
 import ErrorBoundary from "./components/ErrorBoundary";
+import AnimationDemo from "./components/AnimationDemo";
 
 // Main chat application component
 function ChatApp() {
@@ -82,6 +83,7 @@ function ChatApp() {
             <Chat
               user={user}
               activeChatId={activeChatId}
+              setActiveChatId={setActiveChatId}
               onNewChat={handleNewChat}
               isSidebarOpen={isSidebarOpen}
               toggleSidebar={toggleSidebar}
@@ -89,7 +91,7 @@ function ChatApp() {
           </div>
         </div>
       ) : (
-        <div className="animated-bg min-h-screen">
+        <div className="animated-bg min-h-[100dvh] overflow-y-auto">
           <Login />
         </div>
       )}
@@ -103,6 +105,9 @@ export default function App() {
     <ErrorBoundary>
       <Router>
         <Routes>
+          {/* Animation demo route - public */}
+          <Route path="/demo" element={<AnimationDemo />} />
+
           {/* Shared conversation route - public */}
           <Route path="/share/:shareId" element={<SharedConversationPage />} />
 

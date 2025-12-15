@@ -192,9 +192,9 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 sm:p-6 md:p-8 overflow-y-auto">
-      <div className="w-full max-w-md my-8">
-        <div className="glass rounded-2xl p-6 sm:p-8 animate-fade-in">
+    <div className="min-h-[100dvh] flex items-start sm:items-center justify-center py-6 px-4 sm:p-6 md:p-8 overflow-y-auto">
+      <div className="w-full max-w-md my-auto">
+        <div className="glass rounded-2xl p-5 sm:p-8 animate-fade-in">
           {/* Header */}
           <div className="text-center mb-6 sm:mb-8">
             <div className="inline-flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-darkZinc mb-3 sm:mb-4">
@@ -269,7 +269,10 @@ export default function Login() {
               </div>
 
               {/* Email/Password Form */}
-              <form onSubmit={handleEmailAuth} className="space-y-3 sm:space-y-4">
+              <form
+                onSubmit={handleEmailAuth}
+                className="space-y-3 sm:space-y-4"
+              >
                 <div>
                   <label className="block text-xs sm:text-sm text-mutedGrey mb-1.5 sm:mb-2">
                     Email

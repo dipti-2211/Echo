@@ -19,10 +19,12 @@ import ShareButton from "./ShareButton";
 import logger from "../utils/logger";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5001";
+const MAX_INPUT_LENGTH = 10000; // Maximum characters allowed
 
 export default function Chat({
   user,
   activeChatId,
+  setActiveChatId,
   onNewChat,
   isSidebarOpen,
   toggleSidebar,
@@ -249,19 +251,28 @@ export default function Chat({
 
         if (!chatId) {
           // Create NEW chat
-          const newChatId = `chat_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+          const newChatId = `chat_${Date.now()}_${Math.random()
+            .toString(36)
+            .substr(2, 9)}`;
           chatId = newChatId;
-          
+
           // Update BOTH ref and state immediately
           chatIdRef.current = newChatId;
           setCurrentChatId(newChatId);
-          
+
+          if (setActiveChatId) {
+            setActiveChatId(newChatId);
+          }
+
           logger.log("🆕 Created new chat:", newChatId);
 
           // Save to Firestore (fire and forget)
           setDoc(doc(db, "chats", newChatId), {
             userId: user.uid,
-            title: messageToSend.length > 50 ? messageToSend.substring(0, 50) + "..." : messageToSend,
+            title:
+              messageToSend.length > 50
+                ? messageToSend.substring(0, 50) + "..."
+                : messageToSend,
             messages: [],
             createdAt: new Date(),
             updatedAt: new Date(),
@@ -290,7 +301,10 @@ export default function Chat({
           previousMessages.length,
           "messages (excluding current user message)"
         );
-        logger.log("🔗 Backend conversationId:", backendConversationIdRef.current);
+        logger.log(
+          "🔗 Backend conversationId:",
+          backendConversationIdRef.current
+        );
 
         const response = await axios.post(
           `${API_URL}/api/chat`,
@@ -320,14 +334,41 @@ export default function Chat({
 
         logger.log("✅ AI API responded with status:", response.status);
         logger.log("📦 Response data:", response.data);
+        logger.log(
+          "🔍 ConversationId in response:",
+          response.data?.conversationId
+        );
         logger.log("📊 Current messages count:", messages.length);
 
         if (response.data && response.data.success) {
           // Capture conversationId from backend response for follow-up messages
-          if (response.data.conversationId && !backendConversationIdRef.current) {
-            logger.log("🆕 Received conversationId from backend:", response.data.conversationId);
-            setBackendConversationId(response.data.conversationId);
-            backendConversationIdRef.current = response.data.conversationId;
+          const receivedConversationId = response.data.conversationId;
+          logger.log("🔎 Received conversationId:", receivedConversationId);
+          logger.log(
+            "🔎 Current backendConversationIdRef:",
+            backendConversationIdRef.current
+          );
+
+          if (receivedConversationId) {
+            if (!backendConversationIdRef.current) {
+              logger.log(
+                "🆕 Setting NEW conversationId from backend:",
+                receivedConversationId
+              );
+            } else {
+              logger.log(
+                "🔄 Updating conversationId from backend:",
+                receivedConversationId
+              );
+            }
+            setBackendConversationId(receivedConversationId);
+            backendConversationIdRef.current = receivedConversationId;
+            logger.log(
+              "✅ conversationId stored, ref is now:",
+              backendConversationIdRef.current
+            );
+          } else {
+            logger.warn("⚠️ No conversationId in response!");
           }
 
           const aiMessage = {
@@ -436,8 +477,8 @@ export default function Chat({
           </div>
           <div>
             <h1 className="font-semibold text-[15px] tracking-tight">Echo</h1>
-            <p className="text-xs text-gray-500 hidden sm:block tracking-wide">
-              AI Assistant
+            <p className="text-xs text-gray-500 hidden sm:block tracking-wide italic">
+              Where your voice echoes through intelligence
             </p>
           </div>
         </div>
@@ -481,8 +522,8 @@ export default function Chat({
             <h2 className="text-xl md:text-3xl font-semibold mb-2 md:mb-3 tracking-tight">
               Welcome to Echo
             </h2>
-            <p className="text-gray-500 mb-6 md:mb-10 text-xs md:text-base max-w-md mx-auto leading-relaxed">
-              Your AI assistant for thoughtful conversations
+            <p className="text-gray-500 mb-6 md:mb-10 text-xs md:text-base max-w-md mx-auto leading-relaxed italic">
+              Where your voice echoes through intelligence
             </p>
 
             {/* Starter Prompts - Compact on mobile */}
@@ -608,7 +649,12 @@ export default function Chat({
                   <TextareaAutosize
                     ref={inputRef}
                     value={input}
-                    onChange={(e) => setInput(e.target.value)}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (value.length <= MAX_INPUT_LENGTH) {
+                        setInput(value);
+                      }
+                    }}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" && !e.shiftKey) {
                         e.preventDefault();
@@ -619,6 +665,7 @@ export default function Chat({
                     disabled={loading}
                     minRows={1}
                     maxRows={8}
+                    maxLength={MAX_INPUT_LENGTH}
                     className="w-full bg-transparent text-white placeholder-gray-500 resize-none outline-none py-2 leading-relaxed disabled:opacity-50 max-h-[200px] md:max-h-[300px] overflow-y-auto custom-scroll"
                     style={{
                       fontSize: "16px",
@@ -626,6 +673,19 @@ export default function Chat({
                       letterSpacing: "-0.01em",
                     }}
                   />
+                  {/* Character counter - shows when approaching limit */}
+                  {input.length > MAX_INPUT_LENGTH * 0.8 && (
+                    <div
+                      className={`absolute -top-6 right-0 text-xs ${
+                        input.length >= MAX_INPUT_LENGTH
+                          ? "text-red-400"
+                          : "text-gray-500"
+                      }`}
+                    >
+                      {input.length.toLocaleString()}/
+                      {MAX_INPUT_LENGTH.toLocaleString()}
+                    </div>
+                  )}
                 </div>
 
                 {/* Send/Stop Button - Premium styling with focus ring */}
