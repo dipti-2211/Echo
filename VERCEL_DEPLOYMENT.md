@@ -1,6 +1,7 @@
 # 🚀 Vercel Deployment Guide
 
 ## Prerequisites
+
 - [ ] Git repository pushed to GitHub/GitLab/Bitbucket
 - [ ] All `.env` files removed from git (use `.env.example` only)
 - [ ] New API keys generated (old ones revoked)
@@ -10,18 +11,21 @@
 The OG image is currently in SVG format. Convert it to PNG (1200x630px):
 
 ### Option A: Online Converter
+
 1. Go to https://svgtopng.com/
 2. Upload `frontend/public/og-image.svg`
 3. Download as PNG (1200x630)
 4. Save as `frontend/public/og-image.png`
 
 ### Option B: Using Command Line (ImageMagick)
+
 ```bash
 cd frontend/public
 convert -background none -size 1200x630 og-image.svg og-image.png
 ```
 
 ### Option C: Using Browser
+
 1. Open `og-image.svg` in Chrome
 2. Right-click → "Inspect"
 3. Take screenshot at 1200x630 resolution
@@ -32,26 +36,31 @@ convert -background none -size 1200x630 og-image.svg og-image.png
 ## Step 2: Deploy Frontend to Vercel
 
 ### 2.1 Install Vercel CLI (if not installed)
+
 ```bash
 npm install -g vercel
 ```
 
 ### 2.2 Login to Vercel
+
 ```bash
 vercel login
 ```
 
 ### 2.3 Navigate to Frontend Directory
+
 ```bash
 cd /Users/user/Documents/ai-chatbot/frontend
 ```
 
 ### 2.4 Initialize Vercel Project
+
 ```bash
 vercel
 ```
 
 Follow prompts:
+
 - **Set up and deploy?** → `Y`
 - **Which scope?** → Your account
 - **Link to existing project?** → `N`
@@ -89,6 +98,7 @@ vercel env add VITE_API_URL production
 ```
 
 ### 2.6 Deploy to Production
+
 ```bash
 vercel --prod
 ```
@@ -100,11 +110,13 @@ vercel --prod
 ## Step 3: Deploy Backend to Vercel
 
 ### 3.1 Navigate to Backend Directory
+
 ```bash
 cd /Users/user/Documents/ai-chatbot/backend
 ```
 
 ### 3.2 Create `vercel.json` Configuration
+
 ```bash
 cat > vercel.json << 'EOF'
 {
@@ -129,11 +141,13 @@ EOF
 ```
 
 ### 3.3 Initialize Vercel Project
+
 ```bash
 vercel
 ```
 
 Follow prompts:
+
 - **Project name?** → `echo-ai-backend`
 
 ### 3.4 Set Environment Variables (Backend)
@@ -172,6 +186,7 @@ vercel env add MONGODB_URI production
 ```
 
 ### 3.5 Deploy Backend
+
 ```bash
 vercel --prod
 ```
@@ -183,6 +198,7 @@ vercel --prod
 ## Step 4: Update Frontend with Backend URL
 
 ### 4.1 Update Frontend Environment Variable
+
 ```bash
 cd /Users/user/Documents/ai-chatbot/frontend
 vercel env rm VITE_API_URL production
@@ -191,6 +207,7 @@ vercel env add VITE_API_URL production
 ```
 
 ### 4.2 Redeploy Frontend
+
 ```bash
 vercel --prod
 ```
@@ -213,6 +230,7 @@ Ensure `CORS_ORIGIN` matches your frontend URL.
 ## Step 6: Post-Deployment Checklist
 
 ### ✅ Frontend Checks
+
 - [ ] Visit `https://echo-ai-chatbot.vercel.app`
 - [ ] Login with Firebase works
 - [ ] Check browser console for errors
@@ -220,10 +238,12 @@ Ensure `CORS_ORIGIN` matches your frontend URL.
 - [ ] Verify OG image: https://www.opengraph.xyz/
 
 ### ✅ Backend Checks
+
 - [ ] Visit `https://echo-ai-backend.vercel.app/api/health`
 - [ ] Should return: `{"success": true, "message": "Server is running"}`
 
 ### ✅ Security Checks
+
 - [ ] Old API keys revoked
 - [ ] `.env` files NOT in git repository
 - [ ] Firebase security rules configured
@@ -234,15 +254,19 @@ Ensure `CORS_ORIGIN` matches your frontend URL.
 ## Troubleshooting
 
 ### Issue: "CORS Error"
+
 **Fix:** Update backend `CORS_ORIGIN` to match frontend URL exactly
 
 ### Issue: "Environment variables not found"
+
 **Fix:** Redeploy after setting env vars: `vercel --prod`
 
 ### Issue: "API connection failed"
+
 **Fix:** Check `VITE_API_URL` in frontend matches backend URL
 
 ### Issue: "Firebase not connecting"
+
 **Fix:** Verify all Firebase env vars are set correctly
 
 ---
@@ -265,6 +289,7 @@ If you prefer using the UI:
 ## Cost Optimization
 
 Vercel Free Tier includes:
+
 - ✅ 100GB bandwidth/month
 - ✅ Unlimited deployments
 - ✅ Serverless Functions (1000 hours/month)

@@ -130,9 +130,72 @@ export const sendMessage = async (req, res) => {
         let conversation;
         let messages = [];
 
-        // Use conversation history from request if provided, otherwise fetch from DB
+        // If conversationHistory is provided from frontend, use it (stateless mode)
+        // Otherwise use MongoDB to manage conversation state
         if (conversationHistory && Array.isArray(conversationHistory) && conversationHistory.length > 0) {
             console.log('📜 Using conversation history from request:', conversationHistory.length, 'messages');
+
+            // If conversationId is provided, we need to ensure we use/create that conversation
+            if (isMongoConnected) {
+                if (conversationId) {
+                    // Find existing conversation
+                    conversation = await Conversation.findById(conversationId);
+                    if (!conversation) {
+                        console.log('⚠️ Conversation ID provided but not found, creating new one');
+                        const title = message.length > 50 ? message.substring(0, 47) + '...' : message;
+                        conversation = await Conversation.create({
+                            userId,
+                            title,
+                            messages: [],
+                        });
+                    } else {
+                        // Verify conversation belongs to user
+                        if (conversation.userId.toString() !== userId) {
+                            return res.status(403).json({
+                                success: false,
+                                message: 'Unauthorized access to conversation',
+                            });
+                        }
+                    }
+                } else {
+                    // Create new conversation
+                    const title = message.length > 50 ? message.substring(0, 47) + '...' : message;
+                    conversation = await Conversation.create({
+                        userId,
+                        title,
+                        messages: [],
+                    });
+                    console.log('🆕 Created new conversation:', conversation._id);
+                }
+            } else {
+                // In-memory storage
+                if (conversationId) {
+                    conversation = inMemoryConversations.get(conversationId);
+                    if (!conversation) {
+                        const title = message.length > 50 ? message.substring(0, 47) + '...' : message;
+                        conversation = {
+                            _id: conversationId,
+                            userId,
+                            title,
+                            messages: [],
+                            lastActivity: new Date(),
+                        };
+                        inMemoryConversations.set(conversationId, conversation);
+                    }
+                } else {
+                    const title = message.length > 50 ? message.substring(0, 47) + '...' : message;
+                    const newConvId = `conv_${conversationIdCounter++}`;
+                    conversation = {
+                        _id: newConvId,
+                        userId,
+                        title,
+                        messages: [],
+                        lastActivity: new Date(),
+                    };
+                    inMemoryConversations.set(newConvId, conversation);
+                }
+            }
+
             // Add the current user message to the history
             messages = [
                 ...conversationHistory,
@@ -304,7 +367,12 @@ CRITICAL: Always check the conversation history before responding. If a user ask
             conversation.lastActivity = new Date();
         }
 
-        res.status(200).json({
+        console.log('🔍 About to return response');
+        console.log('🔍 Conversation object:', conversation);
+        console.log('🔍 Conversation._id:', conversation?._id);
+        console.log('🔍 Conversation ID type:', typeof conversation?._id);
+
+        const responseData = {
             success: true,
             message: 'Message sent successfully',
             conversationId: conversation._id,
@@ -314,7 +382,11 @@ CRITICAL: Always check the conversation history before responding. If a user ask
                 title: conversation.title,
                 messageCount: conversation.messages.length,
             },
-        });
+        };
+
+        console.log('🔍 Response data:', JSON.stringify(responseData, null, 2));
+
+        res.status(200).json(responseData);
     } catch (error) {
         console.error('Send message error:', error);
         res.status(500).json({
