@@ -78,6 +78,10 @@ app.get('/api/health', (req, res) => {
     });
 });
 
+app.get('/ping', (req, res) => {
+    res.status(200).json({ success: true, message: "Pong! Server is awake." });
+});
+
 // Mock AI Service - Simulates AI response with intelligent logic
 const mockAIService = async (message) => {
     // Simulate processing delay
