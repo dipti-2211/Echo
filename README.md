@@ -41,49 +41,45 @@ An intelligent AI chatbot built with React, Firebase, and Groq AI, featuring con
 
 ```
 Echo/
-├── backend/                    # Node.js/Express backend
-│   ├── controllers/           # Request handlers
-│   │   └── chatController.js # Chat logic & AI integration
-│   ├── middleware/            # Custom middleware
-│   │   ├── authMiddleware.js # Firebase auth verification
-│   │   └── verifyToken.js    # Token validation
-│   ├── models/               # Database models (if using MongoDB)
+├── backend/
+│   ├── controllers/
+│   │   └── chatController.js
+│   ├── middleware/
+│   │   ├── authMiddleware.js
+│   │   └── verifyToken.js
+│   ├── models/
 │   │   ├── Conversation.js
 │   │   └── User.js
-│   ├── routes/               # API routes
+│   ├── routes/
 │   │   └── chatRoutes.js
-│   ├── .env                  # Environment variables (not in git)
-│   ├── .env.example          # Example env file
-│   ├── server.js             # Main server file
+│   ├── server.js
 │   ├── package.json
 │   └── README.md
 │
-├── frontend/                  # React frontend
-│   ├── public/               # Static assets
+├── frontend/
+│   ├── public/
 │   ├── src/
-│   │   ├── components/       # React components
-│   │   │   ├── Chat.jsx              # Main chat interface
-│   │   │   ├── ChatHistory.jsx       # Sidebar with chat list
-│   │   │   ├── CodeBlock.jsx         # Code syntax highlighting
-│   │   │   ├── LogoutModal.jsx       # Logout confirmation
-│   │   │   ├── PersonaSelector.jsx   # AI mode selector
-│   │   │   ├── Sidebar.jsx           # User info sidebar
-│   │   │   ├── ThinkingIndicator.jsx # Loading animation
-│   │   │   └── TypewriterText.jsx    # Typewriter effect
-│   │   ├── firebase.js       # Firebase initialization
-│   │   ├── firebaseConfig.js # Firebase config
-│   │   ├── App.jsx           # Main app component
-│   │   ├── main.jsx          # App entry point
-│   │   └── index.css         # Global styles
-│   ├── .env                  # Environment variables (not in git)
-│   ├── .env.example          # Example env file
+│   │   ├── components/
+│   │   │   ├── Chat.jsx
+│   │   │   ├── ChatHistory.jsx
+│   │   │   ├── CodeBlock.jsx
+│   │   │   ├── LogoutModal.jsx
+│   │   │   ├── PersonaSelector.jsx
+│   │   │   ├── Sidebar.jsx
+│   │   │   ├── ThinkingIndicator.jsx
+│   │   │   └── TypewriterText.jsx
+│   │   ├── firebase.js
+│   │   ├── firebaseConfig.js
+│   │   ├── App.jsx
+│   │   ├── main.jsx
+│   │   └── index.css
 │   ├── index.html
 │   ├── package.json
-│   ├── vite.config.js        # Vite configuration
-│   └── tailwind.config.js    # Tailwind CSS config
+│   ├── vite.config.js
+│   └── tailwind.config.js
 │
-├── .gitignore                # Git ignore rules
-└── README.md                 # This file
+├── .gitignore
+└── README.md
 ```
 
 ## 📦 Installation
