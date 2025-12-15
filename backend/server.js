@@ -44,6 +44,7 @@ app.use('/api/', limiter);
 const allowedOrigins = [
     'http://localhost:5173',
     'http://localhost:5174',
+    'https://echo-ai-chat-bot.vercel.app',
     process.env.FRONTEND_URL // For production
 ].filter(Boolean);
 
